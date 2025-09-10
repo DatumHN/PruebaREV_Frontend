@@ -1,0 +1,34 @@
+<div class="grid lg:grid-cols-2 gap-0 rounded-lg overflow-hidden shadow-xl">
+  <!-- Image Section -->
+  <div class="lg:order-{{ data.layout === 'right' ? '2' : '1' }}">
+    <div class="tw-w-full h-64 overflow-hidden">
+      <img
+        [src]="data.image"
+        [alt]="data.title"
+        class="tw-w-full h-full object-cover"
+      />
+    </div>
+  </div>
+
+  <!-- Content Section -->
+  <div
+    class="lg:order-{{ data.layout === 'right' ? '1' : '2' }} {{
+      data.backgroundColor ? 'bg-[' + data.backgroundColor + ']' : ''
+    }} text-white"
+  >
+    <div class="h-full flex items-center justify-center p-12">
+      <div
+        class="tw-text-center lg:tw-text-{{
+          data.layout === 'right' ? 'left' : 'right'
+        }}"
+      >
+        <h4 class="text-2xl font-bold mb-6 text-rnpn-primary">
+          {{ data.title }}
+        </h4>
+        <p class="text-blue-100 leading-relaxed">
+          {{ data.description }}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

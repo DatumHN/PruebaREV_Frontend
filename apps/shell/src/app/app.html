@@ -1,1 +1,9 @@
 <router-outlet></router-outlet>
+
+<!-- Session Extension Modal -->
+<app-session-extension-modal
+  (sessionExtended)="onExtendSession()"
+  (logoutRequested)="onLogoutRequested()"
+  (modalClosed)="onModalClosed()"
+  (sessionExpired)="onSessionExpired()"
+></app-session-extension-modal>

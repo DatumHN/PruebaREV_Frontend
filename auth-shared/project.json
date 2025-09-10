@@ -1,0 +1,21 @@
+{
+  "name": "auth-shared",
+  "projectType": "library",
+  "sourceRoot": "auth-shared/src",
+  "tags": ["scope:util", "type:lib"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["auth-shared/src/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "auth-shared/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

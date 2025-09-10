@@ -1,16 +1,14 @@
-import { Component } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule, NgOptimizedImage } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
+import { LucideAngularModule } from 'lucide-angular';
+import { RegistryCardComponent } from '../registry-card/registry-card.component';
 import {
-  LucideAngularModule,
-  FileText,
-  Users,
-  FileCheck,
-  Clipboard,
-  BookOpen,
-} from 'lucide-angular';
+  RegistryNavigationService,
+  RegistryMenuItem,
+} from '../../services/registry-navigation.service';
 
 @Component({
   selector: 'app-registry-welcome',
@@ -22,15 +20,15 @@ import {
     CardModule,
     LucideAngularModule,
     NgOptimizedImage,
+    RegistryCardComponent,
   ],
   templateUrl: './registry-welcome.html',
   styleUrls: ['./registry-welcome.css'],
 })
 export class RegistryWelcome {
-  readonly FileText = FileText;
-  readonly Users = Users;
-  readonly FileCheck = FileCheck;
-  readonly Clipboard = Clipboard;
-  readonly BookOpen = BookOpen;
-  registroId = 1;
+  private registryService = inject(RegistryNavigationService);
+
+  registryMenuItems = signal<RegistryMenuItem[]>(
+    this.registryService.getRegistryMenuItems(),
+  );
 }

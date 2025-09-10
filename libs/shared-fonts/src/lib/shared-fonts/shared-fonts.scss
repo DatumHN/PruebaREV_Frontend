@@ -1,0 +1,89 @@
+/* =============================================
+   MuseoSans Font Family - REVFA Project
+   Global font declarations for all microfrontends
+   ============================================= */
+
+/* MuseoSans 100 */
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans-100.otf') format('opentype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans-100Italic.otf') format('opentype');
+  font-weight: 100;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* MuseoSans 300 */
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans-300.otf') format('opentype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans-300Italic.otf') format('opentype');
+  font-weight: 300;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* MuseoSans 500 (Medium) */
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans_500.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans_500_Italic.otf') format('opentype');
+  font-weight: 500;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* MuseoSans 700 (Bold) */
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans_700.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans-700Italic.otf') format('opentype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* MuseoSans 900 (Black) */
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans_900.otf') format('opentype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MuseoSans';
+  src: url('museo-sans/MuseoSans-900Italic.otf') format('opentype');
+  font-weight: 900;
+  font-style: italic;
+  font-display: swap;
+}

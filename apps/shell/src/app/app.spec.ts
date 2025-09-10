@@ -1,5 +1,6 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { Router, RouterModule } from '@angular/router';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 import { App } from './app';
 import { NxWelcome } from './nx-welcome';
@@ -11,6 +12,7 @@ describe('App', () => {
         RouterModule.forRoot([{ path: '', component: NxWelcome }]),
         App,
         NxWelcome,
+        HttpClientTestingModule,
       ],
     }).compileComponents();
   });

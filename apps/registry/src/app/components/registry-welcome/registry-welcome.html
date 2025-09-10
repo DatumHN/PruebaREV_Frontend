@@ -1,166 +1,39 @@
-<div class="w-full">
-  <div class="w-full">
-    <div class="w-full">
-      <div class="bg-white rounded-lg shadow-sm">
-        <div class="p-0"></div>
-        <div class="p-6 pb-0">
-          <div class="w-full">
-            <div class="flex flex-wrap -mx-3">
-              <div class="w-full md:w-2/3 px-3">
-                <div class="mb-12">
-                  <h5 class="text-lg font-medium mb-4">
-                    Iniciar Nuevas Solicitudes
-                  </h5>
-                  <hr class="w-full border-t border-black mb-6" />
+<div class="tw-w-full">
+  <div class="tw-bg-white tw-rounded-lg tw-shadow-sm">
+    <div class="tw-p-6 tw-pb-0">
+      <div class="tw-w-full">
+        <div class="tw-flex tw-flex-wrap tw-mx-3">
+          <div class="tw-w-full md:tw-w-2/3 tw-px-3">
+            <div class="tw-mb-12">
+              <h5 class="tw-text-lg tw-font-medium tw-mb-4">
+                Iniciar Nuevas Solicitudes
+              </h5>
+              <hr class="tw-w-full tw-border-t border-black tw-mb-6" />
 
-                  <div class="cards-section">
-                    <div
-                      class="card-custom"
-                      [routerLink]="['../form',registroId ]"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="FileText"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">
-                          Registro de nacimiento
-                        </h6>
-                      </div>
-                    </div>
-
-                    <div
-                      class="card-custom"
-                      [routerLink]="['/inicio/partidasMatri']"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="Users"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">
-                          Registro de Matrimonio
-                        </h6>
-                      </div>
-                    </div>
-
-                    <div
-                      class="card-custom"
-                      [routerLink]="['/inicio/unionNoMatri']"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="Users"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">
-                          Registro de Unión No Matrimonial
-                        </h6>
-                      </div>
-                    </div>
-
-                    <div
-                      class="card-custom"
-                      [routerLink]="['/inicio/certiAutenticas']"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="FileCheck"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">
-                          Certificaciones y autenticas
-                        </h6>
-                      </div>
-                    </div>
-
-                    <div
-                      class="card-custom"
-                      [routerLink]="['/inicio/defunciones']"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="Clipboard"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">Registro de Defunción</h6>
-                      </div>
-                    </div>
-
-                    <div
-                      class="card-custom"
-                      [routerLink]="['/inicio/nacionalizados']"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="BookOpen"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">
-                          Registro de Nacionalización o Naturalización
-                        </h6>
-                      </div>
-                    </div>
-
-                    <div
-                      class="card-custom"
-                      [routerLink]="['/inicio/defunfetales']"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="FileText"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">
-                          Registro Defunciones Fetales
-                        </h6>
-                      </div>
-                    </div>
-
-                    <div
-                      class="card-custom"
-                      [routerLink]="['/inicio/marginaciones']"
-                    >
-                      <div class="card-custom-body">
-                        <i-lucide
-                          [img]="FileText"
-                          [size]="32"
-                          color="#667eea"
-                          class="card-icon"
-                        ></i-lucide>
-                        <h6 class="card-custom-title">
-                          Registro de Marginaciones
-                        </h6>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="w-full md:w-1/3 px-3 flex justify-center items-end">
-                <img
-                  ngSrc="assets/images/miss.png"
-                  class="max-w-full h-auto miss-image"
-                  alt="miss"
-                  height="594"
-                  width="490"
+              <div
+                class="tw-flex tw-flex-wrap tw-gap-3 tw-py-5 tw-w-full tw-justify-start tw-items-stretch"
+              >
+                @for (item of registryMenuItems(); track item.id) {
+                <app-registry-card
+                  [icon]="item.icon"
+                  [title]="item.title"
+                  [routerLink]="item.route"
                 />
+                }
               </div>
             </div>
+          </div>
+
+          <div
+            class="tw-w-full md:tw-w-1/3 tw-px-3 tw-flex tw-justify-center tw-items-end"
+          >
+            <img
+              ngSrc="assets/images/miss.png"
+              class="tw-max-w-full tw-h-auto tw-miss-image"
+              alt="miss"
+              height="594"
+              width="490"
+            />
           </div>
         </div>
       </div>

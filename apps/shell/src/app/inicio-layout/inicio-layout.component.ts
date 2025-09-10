@@ -23,24 +23,27 @@ import { LoadingComponent } from '../components/loading/loading.component';
     LoadingComponent,
   ],
   template: `
-    <div class="flex flex-col min-h-screen">
+    <div class="tw-flex tw-flex-col tw-min-h-screen tw-bg-white">
       <app-loading></app-loading>
       <app-header />
-      <div class="flex flex-1 relative">
+      <div class="tw-flex tw-flex-1 tw-relative">
         <app-sidebar
-          *ngIf="isSidebarVisible"
-          class="fixed left-0 top-16 bottom-0 z-40 transition-transform transition-opacity duration-300 ease-in-out w-64"
+          class="tw-fixed tw-left-0 tw-top-16 tw-bottom-0 tw-z-40 tw-transition-all tw-duration-500 tw-ease-in-out tw-overflow-hidden"
           [ngClass]="{
-            'opacity-0 -translate-x-8 pointer-events-none': !isSidebarVisible,
-            'opacity-100 translate-x-0': isSidebarVisible
+            'tw-w-0': !isSidebarVisible,
+            'tw-w-[280px]': isSidebarVisible,
           }"
         />
         <main
-          class="flex-1 bg-gray-50 flex flex-col transition-all duration-300 ease-in-out"
-          [ngClass]="{ 'ml-64': isSidebarVisible, 'ml-0': !isSidebarVisible }"
+          class="tw-flex-1 tw-flex tw-flex-col tw-transition-all tw-duration-500 tw-ease-in-out tw-mt-16"
+          style="background-color: #f5f7fb;"
+          [ngClass]="{
+            'tw-ml-[280px]': isSidebarVisible,
+            'tw-ml-0': !isSidebarVisible,
+          }"
         >
           <app-breadcrumb></app-breadcrumb>
-          <div class="flex-1 p-6">
+          <div class="tw-flex-1 tw-p-6">
             <router-outlet></router-outlet>
           </div>
         </main>

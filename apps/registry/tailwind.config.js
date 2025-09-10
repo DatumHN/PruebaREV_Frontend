@@ -1,15 +1,19 @@
 const { createGlobPatternsForDependencies } = require('@nx/angular/tailwind');
 const { join } = require('path');
-const plugin = require('tailwindcss/plugin');
+const rnpnPreset = require('../../libs/tailwind-preset/src/index.js');
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  presets: [rnpnPreset],
+
   content: [
     join(__dirname, 'src/**/!(*.stories|*.spec).{ts,html}'),
     ...createGlobPatternsForDependencies(__dirname),
-
   ],
+
+  // Safelist específico para Registry (formly grid system)
   safelist: [
+    // Grid columns para Formly
     'col-span-1',
     'col-span-2',
     'col-span-3',
@@ -23,7 +27,7 @@ module.exports = {
     'col-span-11',
     'col-span-12',
 
-    // Responsive breakpoints
+    // Responsive grid
     'md:col-span-1',
     'md:col-span-2',
     'md:col-span-3',
@@ -42,60 +46,76 @@ module.exports = {
     'grid-cols-12',
     'gap-x-6',
     'mb-4',
+
+    // Prefijo tw- para nuevas clases
+    { pattern: /^tw-col-span-/ },
+    { pattern: /^tw-grid/ },
   ],
+
   theme: {
-    extend: {},
+    extend: {
+      // Extensiones específicas del Registry
+    },
   },
+
   plugins: [
-    plugin(function ({ addComponents, theme }) {
+    // Plugins específicos del Registry - mantenemos componentes existentes temporalmente
+    require('tailwindcss/plugin')(function ({ addComponents }) {
       addComponents({
-        '.cards-section': {
-          '@apply flex flex-wrap gap-4 py-5 w-full max-w-4xl mx-auto': {},
-        },
-        '.card-custom': {
-          '@apply flex-grow flex-shrink-0 transition-all duration-300 ease-in-out border-none rounded-2xl cursor-pointer relative overflow-hidden h-36 flex items-center justify-center z-10':
+        // Componentes legacy - gradualmente migrarán a prefijo tw-
+        '.cards-section, .tw-cards-section': {
+          '@apply tw-grid tw-gap-6 tw-py-8 tw-w-full tw-max-w-7xl tw-mx-auto':
             {},
-          'flex-basis': '200px',
-          background: 'linear-gradient(145deg, #ffffff, #f0f4f8)',
-          'box-shadow': '0 5px 15px rgba(0, 0, 0, 0.08)',
-          'background-size': '200% 100%',
-          'background-position': 'left center',
+          'grid-template-columns': 'repeat(auto-fit, minmax(280px, 1fr))',
+          'justify-items': 'center',
+        },
+        '.card-custom, .tw-card-custom': {
+          '@apply tw-w-full tw-max-w-sm tw-min-w-72 tw-min-h-40 tw-transition-all tw-duration-300 tw-ease-in-out tw-border-none tw-rounded-2xl tw-cursor-pointer tw-relative tw-overflow-hidden tw-flex tw-items-center tw-justify-center tw-shadow-lg':
+            {},
+          background:
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important',
+          'box-shadow': '0 10px 30px rgba(102, 126, 234, 0.3) !important',
           animation: 'slideInUp 0.6s ease-out both',
 
           '&:hover': {
-            'flex-grow': '6',
-            'background-image':
-              'linear-gradient(to right, #2112c9 0%, #687eff 51%, #050e5b 100%)',
-            'background-position': 'right center',
-            'box-shadow': '0 20px 40px rgba(0, 0, 0, 0.2)',
-            'z-index': '50',
+            transform: 'translateY(-8px) scale(1.02) !important',
+            'box-shadow': '0 20px 40px rgba(102, 126, 234, 0.4) !important',
+            background:
+              'linear-gradient(135deg, #5a6fd8 0%, #6a4c93 100%) !important',
           },
         },
-        '.card-custom-body': {
-          '@apply flex flex-col items-center justify-center text-center px-4 py-5 relative z-20 transition-all duration-300 h-full':
+        '.card-custom-body, .tw-card-custom-body': {
+          '@apply tw-flex tw-flex-col tw-items-center tw-justify-center tw-text-center tw-px-4 tw-py-5 tw-relative tw-z-20 tw-transition-all tw-duration-300 tw-h-full':
             {},
-          color: 'rgb(5, 14, 91)',
+          color: 'var(--rnpn-primary-500)',
         },
-        '.card-custom:hover .card-custom-body': {
-          '@apply text-white': {},
-        },
-        '.card-icon': {
-          '@apply flex items-center justify-center mb-2 transition-all duration-300 mx-auto':
+        '.card-custom:hover .card-custom-body, .tw-card-custom:hover .tw-card-custom-body':
+          {
+            '@apply tw-text-white': {},
+          },
+        '.card-icon, .tw-card-icon': {
+          '@apply tw-flex tw-items-center tw-justify-center tw-mb-2 tw-transition-all tw-duration-300 tw-mx-auto':
             {},
         },
-        '.card-custom:hover .card-icon': {
-          transform: 'translateY(-2px) scale(1)',
+        '.card-custom:hover .card-icon, .tw-card-custom:hover .tw-card-icon': {
+          transform: 'translateY(-4px) scale(1.1)',
         },
-        '.card-custom-title': {
-          '@apply text-sm font-semibold leading-tight m-0 flex justify-center items-center transition-all duration-300':
+        '.card-custom:hover .card-icon i-lucide, .tw-card-custom:hover .tw-card-icon i-lucide':
+          {
+            color: 'white !important',
+          },
+        '.card-custom-title, .tw-card-custom-title': {
+          '@apply tw-text-sm tw-font-semibold tw-leading-tight tw-m-0 tw-flex tw-justify-center tw-items-center tw-transition-all tw-duration-300':
             {},
           'min-height': '40px',
+          color: 'var(--rnpn-primary-500)',
         },
-        '.card-custom:hover .card-custom-title': {
-          '@apply text-white text-base font-bold': {},
-        },
+        '.card-custom:hover .card-custom-title, .tw-card-custom:hover .tw-card-custom-title':
+          {
+            '@apply tw-text-base tw-font-bold tw-text-white': {},
+          },
         '.miss-image': {
-          '@apply max-w-full h-auto': {},
+          '@apply tw-max-w-full tw-h-auto': {},
         },
       });
 
@@ -111,30 +131,43 @@ module.exports = {
           },
         },
       });
-    }),
 
-    plugin(function ({ addComponents }) {
+      // Reglas específicas para sobrescribir cualquier estilo legacy
       addComponents({
-        '@media (max-width: 768px)': {
-          '.cards-section': {
-            '@apply flex-col': {},
+        // Responsive específico para mobile
+        '@media (max-width: 640px)': {
+          '.cards-section, .tw-cards-section': {
+            'grid-template-columns': 'repeat(1, minmax(260px, 1fr))',
+            gap: '1rem',
+            padding: '1.5rem 0',
           },
-          '.card-custom': {
-            '@apply h-32': {},
-            flex: '1 1 100%',
+          '.card-custom, .tw-card-custom': {
+            '@apply tw-h-36 tw-min-w-60': {},
           },
-          '.card-custom:hover': {
-            transform: 'scale(1)',
-            'flex-grow': '1',
+          '.card-custom:hover, .tw-card-custom:hover': {
+            transform: 'translateY(-4px) scale(1.01)',
           },
-          '.card-custom:hover .card-icon': {
-            transform: 'translateY(-5px) scale(1.1)',
+          '.card-custom:hover .card-icon, .tw-card-custom:hover .tw-card-icon':
+            {
+              transform: 'translateY(-2px) scale(1.05)',
+            },
+          '.card-custom:hover .card-custom-title, .tw-card-custom:hover .tw-card-custom-title':
+            {
+              '@apply tw-text-sm': {},
+            },
+        },
+        // Tablet responsive
+        '@media (min-width: 641px) and (max-width: 1024px)': {
+          '.cards-section, .tw-cards-section': {
+            'grid-template-columns': 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: '1.5rem',
           },
-          '.card-custom:hover .card-custom-title': {
-            '@apply text-xs': {},
-          },
-          '.miss-image': {
-            '@apply mt-8': {},
+        },
+        // Desktop responsive
+        '@media (min-width: 1025px)': {
+          '.cards-section, .tw-cards-section': {
+            'grid-template-columns': 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '2rem',
           },
         },
       });

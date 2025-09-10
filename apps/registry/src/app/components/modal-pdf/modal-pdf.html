@@ -4,8 +4,10 @@
   <!-- Estado de Carga: Se muestra mientras se genera el PDF. -->
   @if (isLoading) {
   <div class="feedback-container">
-    <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
-    <p class="mt-3 text-gray-600">Generando vista previa...</p>
+    <div class="tw-spinner-with-text">
+      <div class="tw-spinner-rnpn-lg"></div>
+      <p class="tw-spinner-text">Generando vista previa...</p>
+    </div>
   </div>
   }
 
@@ -24,6 +26,9 @@
 
   <!-- SOLUCIÓN: Contenedor para el nuevo botón de cierre -->
   <div class="modal-footer">
-    <p-button label="Cerrar" icon="pi pi-times" (onClick)="closeModal()"> </p-button>
+    <button class="tw-btn-rnpn" (click)="closeModal()">
+      <i class="pi pi-times tw-mr-2"></i>
+      Cerrar
+    </button>
   </div>
 </div>

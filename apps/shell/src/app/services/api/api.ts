@@ -1,8 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import {
-  HttpClient,
-  HttpErrorResponse,
-} from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 
@@ -20,15 +17,27 @@ export interface Principales {
 
 // Interfaz para la respuesta de la lista de solicitudes
 export interface RequestList {
+  id: number;
   correlativo: string;
-  id: string;
-  estado: string;
   fechaSolicitud: string;
-  solicitante: string;
-  documIdentidad: string;
-  asignado: string;
+  tipoDocumento: {
+    id: number;
+    idSuperior: number;
+    nombre: string;
+    terzoResponsa: number;
+    sequencia: number;
+    activo: string;
+    tipoCorrelativo: string;
+    etiqueta: string;
+  };
+  detallesSolicitudes: any[];
+  uuid: string | null;
+  estado: string;
+  // Campos opcionales para compatibilidad con la tabla actual
+  solicitante?: string;
+  documIdentidad?: string;
+  asignado?: string;
 }
-
 
 // Interfaz para la respuesta del correlativo del backend
 interface CorrelativoResponse {
@@ -72,38 +81,47 @@ export class Api {
       .get<CorrelativoResponse>(`${this.baseUrl}/correlativos/generar/${id}`)
       .pipe(
         catchError(this.handleError),
-        map(response => response.correlativo)
+        map((response) => response.correlativo),
       );
   }
 
   createSelect(payload: any): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/solicitudes`, payload).pipe(
-      catchError(this.handleError)
-    );
+    return this.http
+      .post<any>(`${this.baseUrl}/solicitudes`, payload)
+      .pipe(catchError(this.handleError));
   }
 
   getformUniq(id: string, rol: string): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/secciones/portipodocumento/${id}/${rol}`).pipe(
-      catchError(this.handleError)
-    );
+    return this.http
+      .get<any>(`${this.baseUrl}/secciones/portipodocumento/${id}/${rol}`)
+      .pipe(catchError(this.handleError));
   }
-  
+
   uploadAnexos(formData: FormData): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/anexos/upload`, formData).pipe(
-        catchError(this.handleError)
-    );
+    return this.http
+      .post<any>(`${this.baseUrl}/anexos/upload`, formData)
+      .pipe(catchError(this.handleError));
   }
 
   getApproveFormById(id: string, rol: string): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/secciones/porsolicitud/${id}/${rol}`).pipe(
-      catchError(this.handleError)
-    );
+    return this.http
+      .get<any>(`${this.baseUrl}/secciones/porsolicitud/${id}/${rol}`)
+      .pipe(catchError(this.handleError));
   }
 
-  updateRequestStatus(status: string, id: string, payload: any): Observable<any> {
-    const endpoint = status === 'Aprobado' ? `/solicitudes/actualizar` : `/solicitudes/cambiarestado/${id}/${status}`;
-    const request = status === 'Aprobado' ? this.http.put(endpoint, payload) : this.http.put(endpoint, {});
+  updateRequestStatus(
+    status: string,
+    id: string,
+    payload: any,
+  ): Observable<any> {
+    const endpoint =
+      status === 'Aprobado'
+        ? `/solicitudes/actualizar`
+        : `/solicitudes/cambiarestado/${id}/${status}`;
+    const request =
+      status === 'Aprobado'
+        ? this.http.put(endpoint, payload)
+        : this.http.put(endpoint, {});
     return request.pipe(catchError(this.handleError));
   }
-
 }

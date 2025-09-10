@@ -35,17 +35,23 @@
   width: 100%;
 }
 
+/* Controles de input mantienen 100% del ancho de su contenedor */
 ::ng-deep formly-field input,
 ::ng-deep formly-field textarea,
 ::ng-deep formly-field select,
 ::ng-deep formly-field .p-inputtext,
-::ng-deep formly-field .p-dropdown,
 ::ng-deep formly-field .p-calendar,
 ::ng-deep formly-field .p-input-group,
 ::ng-deep formly-field .p-autocomplete,
 ::ng-deep formly-field .p-radiobutton,
 ::ng-deep formly-field .p-checkbox {
   width: 100% !important;
+}
+
+/* Dropdown respeta el ancho configurado desde backend - no forzar 100% */
+::ng-deep formly-field .p-dropdown {
+  width: 100%;
+  min-width: 150px; /* Ancho mínimo para evitar dropdowns muy pequeños */
 }
 
 ::ng-deep formly-field .p-datepicker {

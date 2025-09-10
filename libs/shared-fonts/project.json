@@ -1,0 +1,42 @@
+{
+  "name": "shared-fonts",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared-fonts/src",
+  "prefix": "lib",
+  "projectType": "library",
+  "tags": ["scope:util"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{workspaceRoot}/dist/{projectRoot}"],
+      "options": {
+        "outputPath": "dist/libs/shared-fonts",
+        "main": "libs/shared-fonts/src/index.ts",
+        "tsConfig": "libs/shared-fonts/tsconfig.lib.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "libs/shared-fonts/src/lib/shared-fonts/museo-sans",
+            "output": "museo-sans"
+          },
+          {
+            "glob": "*.scss",
+            "input": "libs/shared-fonts/src/lib/shared-fonts",
+            "output": "."
+          }
+        ]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/shared-fonts/jest.config.ts",
+        "tsConfig": "libs/shared-fonts/tsconfig.spec.json"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

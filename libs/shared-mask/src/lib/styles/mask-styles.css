@@ -1,0 +1,98 @@
+/* Mask validation styling for Tailwind integration */
+
+/* Valid mask state - Using RNPN brand color */
+.mask-valid {
+  /* Fallback for browsers that don't support CSS custom properties */
+  border-color: #050e5b !important;
+  /* Modern browsers with CSS custom properties support */
+  border-color: var(--rnpn-primary-500, #050e5b) !important;
+}
+
+.mask-valid:focus {
+  /* Fallback for browsers that don't support CSS custom properties */
+  border-color: #040a48 !important;
+  /* Modern browsers with CSS custom properties support */
+  border-color: var(--rnpn-primary-600, #040a48) !important;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+/* Invalid mask state */
+.mask-invalid {
+  @apply border-red-500 focus:border-red-600 focus:ring-red-500;
+}
+
+/* Processing state */
+.mask-processing {
+  @apply border-blue-500 focus:border-blue-600 focus:ring-blue-500;
+}
+
+/* Auto-complete suggestion styling */
+.mask-suggestion {
+  @apply bg-blue-50 border-l-4 border-blue-400 text-blue-800 px-2 py-1 text-sm;
+}
+
+/* Placeholder enhancement */
+.mask-input::placeholder {
+  @apply text-gray-400 font-mono;
+}
+
+/* Success animation - Using brand color */
+@keyframes mask-success {
+  0% {
+    box-shadow: 0 0 0 2px rgba(5, 14, 91, 0.4); /* --rnpn-primary-500 */
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(5, 14, 91, 0.2); /* --rnpn-primary-500 */
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(5, 14, 91, 0.1); /* --rnpn-primary-500 */
+  }
+}
+
+/* Error shake animation */
+@keyframes mask-error-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+/* Apply animations */
+.mask-success-animation {
+  animation: mask-success 0.6s ease-out;
+}
+
+.mask-error-animation {
+  animation: mask-error-shake 0.5s ease-in-out;
+}
+
+/* Focus enhancement - Using brand color */
+.mask-input:focus {
+  @apply outline-none ring-2 ring-offset-2;
+  --tw-ring-color: var(--rnpn-primary-500);
+}
+
+/* Disabled state */
+.mask-input:disabled {
+  @apply bg-gray-100 text-gray-500 cursor-not-allowed;
+}
+
+/* Loading state */
+.mask-loading {
+  @apply relative;
+}
+
+.mask-loading::after {
+  content: '';
+  @apply absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 border-2 border-gray-300 rounded-full animate-spin;
+  border-top-color: var(
+    --rnpn-primary-500
+  ); /* Using brand color for loading spinner */
+}

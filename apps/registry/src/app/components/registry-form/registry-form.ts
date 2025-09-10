@@ -5,8 +5,9 @@ import {
   NgZone,
   OnDestroy,
   OnInit,
-  ViewChild,
   AfterViewInit,
+  ViewChild,
+  ElementRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -18,8 +19,8 @@ import {
   Validators,
   ValidationErrors,
 } from '@angular/forms';
-import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { lastValueFrom, Subject, of, forkJoin, from } from 'rxjs';
+import { HttpClientModule } from '@angular/common/http';
+import { lastValueFrom, Subject, of } from 'rxjs';
 import {
   takeUntil,
   delay,
@@ -30,34 +31,38 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 
 import { FormlyFieldConfig } from '@ngx-formly/core';
-import { FormlyPrimeNGModule } from '@ngx-formly/primeng';
-import { FormlyDatepickerModule } from '@ngx-formly/primeng/datepicker';
 
 // --- PrimeNG ---
-import { StepperModule } from 'primeng/stepper';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { DialogService, DynamicDialogRef } from 'primeng/dynamicdialog';
 import { CardModule } from 'primeng/card';
-import { AutoCompleteModule } from 'primeng/autocomplete';
 import { InputGroupModule } from 'primeng/inputgroup';
 import { InputTextModule } from 'primeng/inputtext';
-import { TableModule } from 'primeng/table';
-import { FileUpload, FileUploadModule } from 'primeng/fileupload';
 import { TooltipModule } from 'primeng/tooltip';
-import { MessageModule } from 'primeng/message';
 import { DividerModule } from 'primeng/divider';
-import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
+import { TailwindToastService } from './tailwind-toast.service';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
 // --- Servicios y Utilidades ---
 import { Api, Principales } from '../../services/api/api';
-import { Logo, LogoData } from '../../services/logo/logo';
-import { PdfService } from '../../services/pdf-service/pdf-service';
+import { LogoData } from '../../services/logo/logo';
+import {
+  PdfService,
+  JsonGeneral,
+  JsonTitular,
+  SolicitudResponse,
+} from '../../services/pdf-service/pdf-service';
 import { ModalPdf } from '../modal-pdf/modal-pdf';
 import { FormlyConfigModule } from './formly-config.module';
 import { getRequestDocumentDefinition } from '../../utils/birth-request-document-definition';
+import { FieldValueMapperService } from '../../services/test-data/field-value-mapper.service';
+import { LogoSelectorComponent } from '../logo-selector/logo-selector';
+import { AuthStateService } from '@revfa/auth-shared';
+import { TailwindStepperComponent } from './tailwind-stepper.component';
+import { TailwindToastContainerComponent } from './tailwind-toast-container.component';
+import { TailwindMessageComponent } from './tailwind-message.component';
+import { TailwindInputComponent } from './tailwind-input.component';
 
 /* --- Interfaces --- */
 interface StepConfig {
@@ -76,6 +81,12 @@ interface Campo {
   ejemplo?: string;
   id?: string;
   busqueda?: 'S' | 'N';
+  lonMinima?: number;
+  lonMaxima?: number;
+  mascara?: string;
+  mask?: string;
+  regex?: string;
+  validCompleja?: string;
   catalogos?: {
     id: number;
     nombre: string;
@@ -102,6 +113,19 @@ interface AnexoEsperado {
   nombre: string;
 }
 
+interface FieldMapping {
+  targetField: string;
+  sections: string[];
+  fields: string[];
+  separator?: string;
+  required?: boolean;
+  validator?: (value: string) => boolean;
+}
+
+interface PdfFieldCache {
+  [key: string]: string;
+}
+
 export function requireOneOf(controlName1: string, controlName2: string) {
   return (group: AbstractControl): ValidationErrors | null => {
     const control1 = group.get(controlName1);
@@ -119,40 +143,39 @@ export function requireOneOf(controlName1: string, controlName2: string) {
     ReactiveFormsModule,
     FormsModule,
     FormlyConfigModule,
-    FormlyPrimeNGModule,
-    FormlyDatepickerModule,
-    StepperModule,
     ButtonModule,
     DialogModule,
     CardModule,
-    AutoCompleteModule,
     InputGroupModule,
     InputTextModule,
-    TableModule,
-    FileUploadModule,
     TooltipModule,
-    MessageModule,
     DividerModule,
-    ToastModule,
     HttpClientModule,
     ProgressSpinnerModule,
+    LogoSelectorComponent,
+    TailwindStepperComponent,
+    TailwindToastContainerComponent,
+    TailwindMessageComponent,
+    TailwindInputComponent,
   ],
-  providers: [DialogService, MessageService],
+  providers: [DialogService],
   templateUrl: './registry-form.html',
   styleUrls: ['./registry-form.css'],
 })
 export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
   private api = inject(Api);
   private pdfService = inject(PdfService);
-  private logoService = inject(Logo);
   private dialogService = inject(DialogService);
   private cdr = inject(ChangeDetectorRef);
-  private http = inject(HttpClient);
   private fb = inject(FormBuilder);
-  private messageService = inject(MessageService);
+  private toastService = inject(TailwindToastService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private zone = inject(NgZone);
+  private fieldValueMapper = inject(FieldValueMapperService);
+  private authState = inject(AuthStateService);
+
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   isPdfDataReady = false;
   activeStepIndex = 0;
@@ -170,11 +193,195 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
   rolSeleccionado = '';
   etapaSeleccionadaId = 1;
   formDataParaPdf: any;
-  logos: LogoData[] = [];
-  filteredLogos: LogoData[] = [];
   selectedLogo: LogoData | null = null;
   logoBase64: string | null = null;
-  isLoadingLogos = false;
+
+  // PDF field mapping configuration
+  private readonly PDF_FIELD_MAPPINGS: FieldMapping[] = [
+    {
+      targetField: 'header.lugarFechaHora',
+      sections: ['Inscrito'],
+      fields: ['Fecha Nacimiento'],
+      required: true,
+    },
+    {
+      targetField: 'header.codigoPresentacion',
+      sections: ['solicitud'],
+      fields: ['correlativo'],
+      required: true,
+    },
+    {
+      targetField: 'header.emailContacto',
+      sections: ['Informante'],
+      fields: ['Número de Documento'], // Campo disponible como contacto
+      required: false,
+    },
+    {
+      targetField: 'header.plazoRespuesta',
+      sections: ['solicitud'],
+      fields: ['fechaSolicitud'],
+      required: true,
+    },
+    {
+      targetField: 'solicitante.tipoPersona',
+      sections: ['Informante'],
+      fields: ['Sexo'],
+      required: true,
+    },
+    {
+      targetField: 'solicitante.documentoTipo',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: ['Tipo Documento'],
+      required: true,
+    },
+    {
+      targetField: 'solicitante.documentoNumero',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: ['Número de Documento'],
+      required: true,
+    },
+    {
+      targetField: 'solicitante.domicilio',
+      sections: ['Informante', 'DIRECCIÓN SEGÚN DUI'],
+      fields: ['Departamento', 'Distrito/Ciudad'],
+      separator: ' ',
+      required: true,
+    },
+    {
+      targetField: 'solicitante.nombreCompleto',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: [
+        'Primer Nombre',
+        'Segundo Nombre',
+        'Tercer Nombre',
+        'Primer Apellido',
+        'Segundo Apellido',
+      ],
+      separator: ' ',
+      required: true,
+    },
+    {
+      targetField: 'solicitante.esTituler',
+      sections: ['Informante'],
+      fields: ['Parentesco'],
+      required: false,
+    },
+    {
+      targetField: 'solicitante.caracter',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: ['Parentesco'],
+      required: true,
+    },
+    {
+      targetField: 'titular.documentoTipo',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: ['Tipo Documento'],
+      required: true,
+    },
+    {
+      targetField: 'titular.documentoNumero',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: ['Número de Documento'],
+      required: true,
+    },
+    {
+      targetField: 'titular.nombreCompleto',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: [
+        'Primer Nombre',
+        'Segundo Nombre',
+        'Tercer Nombre',
+        'Primer Apellido',
+        'Segundo Apellido',
+      ],
+      separator: ' ',
+      required: true,
+    },
+    {
+      targetField: 'titular.fechaHecho',
+      sections: ['Inscrito'],
+      fields: ['Fecha Nacimiento'],
+      required: true,
+    },
+    {
+      targetField: 'titular.lugarHecho',
+      sections: ['Inscrito', 'LUGAR Y DIRECCIÓN DE NACIMIENTO'],
+      fields: ['Lugar especifico'],
+      required: true,
+    },
+    {
+      targetField: 'titular.nombreMadre',
+      sections: ['Madre', 'DATOS GENERALES'],
+      fields: [
+        'Primer Nombre',
+        'Segundo Nombre',
+        'Tercer Nombre',
+        'Primer Apellido',
+        'Segundo Apellido',
+      ],
+      separator: ' ',
+      required: true,
+    },
+    {
+      targetField: 'titular.nombrePadre',
+      sections: ['Padre', 'DATOS GENERALES'],
+      fields: [
+        'Primer Nombre',
+        'Segundo Nombre',
+        'Tercer Nombre',
+        'Primer Apellido',
+        'Segundo Apellido',
+      ],
+      separator: ' ',
+      required: true,
+    },
+    {
+      targetField: 'declaracion.inscripcionPrincipal',
+      sections: ['Inscrito'],
+      fields: ['CUN'],
+      required: true,
+    },
+    {
+      targetField: 'declaracion.anotacionMarginal',
+      sections: ['Inscrito'],
+      fields: ['Número de Boleta'],
+      required: true,
+    },
+    {
+      targetField: 'documentacion.presentada',
+      sections: ['Informante'],
+      fields: ['Tipo Documento'],
+      required: true,
+    },
+    {
+      targetField: 'firmas.nombreSolicitante',
+      sections: ['Informante', 'DATOS GENERALES'],
+      fields: [
+        'Primer Nombre',
+        'Segundo Nombre',
+        'Tercer Nombre',
+        'Primer Apellido',
+        'Segundo Apellido',
+      ],
+      separator: ' ',
+      required: true,
+    },
+    {
+      targetField: 'firmas.nombreRef',
+      sections: ['Padre', 'DATOS GENERALES'],
+      fields: [
+        'Primer Nombre',
+        'Segundo Nombre',
+        'Tercer Nombre',
+        'Primer Apellido',
+        'Segundo Apellido',
+      ],
+      separator: ' ',
+      required: true,
+    },
+  ];
+
+  private pdfFieldCache: PdfFieldCache = {};
 
   // Modal de búsqueda
   isSearchModalVisible = false;
@@ -190,15 +397,80 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
   anexosSubidos: Anexo[] = [];
   anexosEsperados: AnexoEsperado[] = [];
   nombresPredefinidos: string[] = [];
-  sugerenciasNombres: string[] = [];
   selectedFile: File | null = null;
+  isDragOver = false;
+
+  // Autocomplete properties for anexo form
+  isAutocompleteOpen = false;
+  isAutocompleteLoading = false;
+  autocompleteQuery = '';
+  filteredSugerencias: string[] = [];
+  highlightedIndex = -1;
+  highlightedOptionId = '';
+  autocompleteListId =
+    'autocomplete-list-' + Math.random().toString(36).substr(2, 9);
 
   idTipoDocumento = -1;
   correlativoG = '';
   solicitudIdFromWelcome: number | null = null;
   rolUsuario = '';
+  topSelectionCompleted = false;
 
-  @ViewChild('fileUploader') fileUploader?: FileUpload;
+  // Registry types data for dynamic title
+  private readonly registryTypes = [
+    {
+      id: 1,
+      idSuperior: 0,
+      nombre: 'Nacimiento',
+      plazoRespuesta: 5,
+      secuencia: 1,
+      activo: 'S',
+      tipoCorrelativo: 'NAC',
+      etiqueta: 'Tipo de partida',
+    },
+    {
+      id: 86,
+      idSuperior: 0,
+      nombre: 'Matrimonio',
+      plazoRespuesta: 5,
+      secuencia: 2,
+      activo: 'S',
+      tipoCorrelativo: 'MAT',
+      etiqueta: 'Tipo de partida',
+    },
+    {
+      id: 109,
+      idSuperior: 0,
+      nombre: 'Unión no Matrimonial',
+      plazoRespuesta: 5,
+      secuencia: 3,
+      activo: 'S',
+      tipoCorrelativo: 'UNM',
+      etiqueta: 'Tipo de partida',
+    },
+    {
+      id: 112,
+      idSuperior: 0,
+      nombre: 'Defunción',
+      plazoRespuesta: 5,
+      secuencia: 4,
+      activo: 'S',
+      tipoCorrelativo: 'DEF',
+      etiqueta: 'Tipo de partida',
+    },
+    {
+      id: 147,
+      idSuperior: 0,
+      nombre: 'Defunción Fetal',
+      plazoRespuesta: 5,
+      secuencia: 5,
+      activo: 'S',
+      tipoCorrelativo: 'DFF',
+      etiqueta: 'Tipo de partida',
+    },
+  ];
+
+  currentRegistryTypeName = 'Nacimiento';
 
   constructor() {
     this.anexoForm = this.fb.group(
@@ -211,13 +483,34 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     );
   }
 
+  private mapUserRoleToDisplayRole(): string {
+    const userRoles = this.authState.user()?.roles || [];
+    if (userRoles.includes('revfa-registrador')) {
+      return 'Registrador';
+    }
+    if (userRoles.includes('revfa-verificador')) {
+      return 'Verificador';
+    }
+    return '';
+  }
+
+  private updateRegistryTypeName(registryId: number): void {
+    const registryType = this.registryTypes.find(
+      (type) => type.id === registryId,
+    );
+    this.currentRegistryTypeName = registryType
+      ? registryType.nombre
+      : 'Nacimiento';
+  }
+
   ngOnInit() {
     console.log('RegistryForm ngOnInit iniciado');
 
     this.route.params.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       if (params['id']) {
-        this.rolUsuario = 'Registrador';
+        this.rolUsuario = this.mapUserRoleToDisplayRole();
         this.solicitudIdFromWelcome = +params['id'];
+        this.updateRegistryTypeName(+params['id']);
 
         this.initializeFormFlow();
         this.initializeComponent();
@@ -226,7 +519,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         console.warn(
           'No se proporcionó un ID de solicitud. Redirigiendo a la bienvenida.',
         );
-        this.router.navigate(['../welcome'], { relativeTo: this.route });
+        this.router.navigate(['/welcome']);
       }
     });
   }
@@ -253,26 +546,26 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     );
   }
 
-  /**
-   * Filtra los nombres para el AutoComplete y fuerza la detección de cambios.
-   */
-  filtrarNombresAnexos(event: { query: string }) {
-    const query = event.query.toLowerCase();
-    this.sugerenciasNombres = this.nombresPredefinidos.filter((nombre) =>
-      nombre.toLowerCase().includes(query),
-    );
-    // Forzar la detección de cambios para asegurar que la lista de sugerencias se actualice
-    //this.cdr.detectChanges();
-  }
-
   openAnexoModal() {
     console.log('Abriendo modal de anexo...');
     this.anexoForm.reset();
     this.selectedFile = null;
 
+    // Reset autocomplete state
+    this.isAutocompleteOpen = false;
+    this.isAutocompleteLoading = false;
+    this.autocompleteQuery = '';
+    this.filteredSugerencias = [...this.nombresPredefinidos];
+    this.highlightedIndex = -1;
+    this.highlightedOptionId = '';
+
     setTimeout(() => {
-      if (this.fileUploader) {
-        this.fileUploader.clear();
+      // Clear file input
+      const fileInput = document.getElementById(
+        'anexoFile',
+      ) as HTMLInputElement;
+      if (fileInput) {
+        fileInput.value = '';
       }
     }, 0);
 
@@ -292,12 +585,24 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
   }
 
   onAnexoModalHide() {
-    console.log('Evento onHide disparado - Limpiando estado del modal de anexo');
+    console.log(
+      'Evento onHide disparado - Limpiando estado del modal de anexo',
+    );
     this.anexoForm.reset();
     this.selectedFile = null;
 
-    if (this.fileUploader) {
-      this.fileUploader.clear();
+    // Reset autocomplete state
+    this.isAutocompleteOpen = false;
+    this.isAutocompleteLoading = false;
+    this.autocompleteQuery = '';
+    this.filteredSugerencias = [];
+    this.highlightedIndex = -1;
+    this.highlightedOptionId = '';
+
+    // Clear file input
+    const fileInput = document.getElementById('anexoFile') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
     }
     this.cdr.detectChanges();
   }
@@ -314,16 +619,122 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     this.anexoForm.patchValue({ archivo: null });
   }
 
+  // Dropzone methods
+  onDropzoneClick(event: Event) {
+    // Prevent default behavior and stop event propagation
+    event.preventDefault();
+    event.stopPropagation();
+    this.triggerFileInput();
+  }
+
+  triggerFileInput() {
+    // Use ViewChild for reliable file input access
+    if (this.fileInput?.nativeElement) {
+      // Use setTimeout to ensure the element is ready and avoid click issues
+      setTimeout(() => {
+        this.fileInput.nativeElement.click();
+      }, 0);
+    } else {
+      // Fallback to document query if ViewChild is not available
+      const fileInput = document.querySelector(
+        '#anexoFile',
+      ) as HTMLInputElement;
+      if (fileInput) {
+        setTimeout(() => {
+          fileInput.click();
+        }, 0);
+      } else {
+        console.warn(
+          'File input element not found - neither ViewChild nor document query worked',
+        );
+      }
+    }
+  }
+
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  onDragLeave(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+  }
+
+  onDrop(event: DragEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      this.handleFileSelection(files[0]);
+    }
+  }
+
+  onFileInputChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (files && files.length > 0) {
+      this.handleFileSelection(files[0]);
+    }
+  }
+
+  private handleFileSelection(file: File) {
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      this.toastService.addError(
+        'Tipo de archivo no válido',
+        'Solo se permiten archivos PDF.',
+      );
+      return;
+    }
+
+    // Validate file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      this.toastService.addError(
+        'Tamaño de archivo no válido',
+        'El tamaño máximo permitido es 10MB.',
+      );
+      return;
+    }
+
+    this.selectedFile = file;
+    this.anexoForm.patchValue({ archivo: file });
+  }
+
+  removeFile(event: Event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.clearFile();
+  }
+
+  formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  get nombrePredefinidoOptions() {
+    return this.nombresPredefinidos.map((nombre) => ({
+      value: nombre,
+      label: nombre,
+    }));
+  }
+
   guardarAnexo() {
     this.anexoForm.markAllAsTouched();
 
     if (this.anexoForm.invalid) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Formulario Incompleto',
-        detail:
-          'Debe proporcionar un nombre (predefinido o personalizado) y seleccionar un archivo PDF.',
-      });
+      this.toastService.addWarn(
+        'Formulario Incompleto',
+        'Debe proporcionar un nombre (predefinido o personalizado) y seleccionar un archivo PDF.',
+      );
       return;
     }
 
@@ -332,11 +743,10 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
       this.anexoForm.value.nombrePredefinido;
 
     if (!nombre || !this.selectedFile) {
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Ocurrió un problema al obtener el nombre o el archivo.',
-      });
+      this.toastService.addError(
+        'Error',
+        'Ocurrió un problema al obtener el nombre o el archivo.',
+      );
       return;
     }
 
@@ -347,11 +757,10 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
 
     this.anexosSubidos = [...this.anexosSubidos, nuevoAnexo];
 
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Éxito',
-      detail: `Anexo "${nombre}" agregado correctamente.`,
-    });
+    this.toastService.addSuccess(
+      'Éxito',
+      `Anexo "${nombre}" agregado correctamente.`,
+    );
 
     this.closeAnexoModal();
   }
@@ -362,11 +771,10 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
       this.anexosSubidos.splice(index, 1);
       this.anexosSubidos = [...this.anexosSubidos];
 
-      this.messageService.add({
-        severity: 'info',
-        summary: 'Anexo Eliminado',
-        detail: `Se eliminó el anexo: ${anexoEliminado.nombre}`,
-      });
+      this.toastService.addInfo(
+        'Anexo Eliminado',
+        `Se eliminó el anexo: ${anexoEliminado.nombre}`,
+      );
     }
   }
 
@@ -406,7 +814,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
             );
             this.topFields = [
               {
-                fieldGroupClassName: 'grid grid-cols-12 gap-4',
+                fieldGroupClassName: 'tw-grid tw-grid-cols-12 tw-gap-4',
                 fieldGroup: [initialField],
               },
             ];
@@ -423,35 +831,24 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private initializeComponent(): void {
-    const logoDefault$ = from(this.loadDefaultLogo()).pipe(
-      catchError((error) => {
-        console.warn(
-          'No se pudo cargar el logo por defecto. El usuario deberá seleccionar uno manualmente.',
-          error,
-        );
-        return of(null);
-      }),
-    );
-
-    const pdfData$ = this.api.getBirthCertificateData().pipe(
-      catchError((error) => {
-        console.error(
-          'Error CRÍTICO al cargar la plantilla de datos del PDF.',
-          error,
-        );
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error de Carga',
-          detail: 'No se pudo cargar la plantilla para la vista previa.',
-        });
-        return of(null);
-      }),
-    );
-
-    forkJoin([logoDefault$, pdfData$])
-      .pipe(takeUntil(this.destroy$))
+    this.api
+      .getBirthCertificateData()
+      .pipe(
+        catchError((error) => {
+          console.error(
+            'Error CRÍTICO al cargar la plantilla de datos del PDF.',
+            error,
+          );
+          this.toastService.addError(
+            'Error de Carga',
+            'No se pudo cargar la plantilla para la vista previa.',
+          );
+          return of(null);
+        }),
+        takeUntil(this.destroy$),
+      )
       .subscribe({
-        next: ([_, pdfDataResult]) => {
+        next: (pdfDataResult) => {
           if (pdfDataResult) {
             this.formDataParaPdf = pdfDataResult;
             this.isPdfDataReady = true;
@@ -466,18 +863,14 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
           }
         },
       });
-
-    this.loadAvailableLogos();
   }
 
   showPdfWithDynamicData(): void {
     if (!this.isPdfDataReady || !this.logoBase64) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Datos no listos',
-        detail:
-          'Por favor, espere a que los datos carguen y seleccione un logo.',
-      });
+      this.toastService.addWarn(
+        'Datos no listos',
+        'Por favor, espere a que los datos carguen y seleccione un logo.',
+      );
       return;
     }
 
@@ -497,30 +890,40 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         docDefinition: docDef,
       },
     });
-  }
 
-  private async loadDefaultLogo() {
-    try {
-      const logoPath = '/assets/logos/RNPNFooter.png';
-      const response = await lastValueFrom(
-        this.http.get(logoPath, { responseType: 'blob' }),
-      );
-      this.logoBase64 = await this.convertBlobToBase64(response);
-    } catch (error) {
-      console.error('Error al cargar el logo por defecto:', error);
-      throw error;
-    }
+    this.dialogRef.onClose.subscribe(() => {
+      this.dialogRef = undefined;
+    });
   }
 
   async submitForm(): Promise<void> {
-    if (this.mainForm.invalid || this.topForm.invalid) {
+    // Validar todos los pasos excluyendo datepickers
+    let allStepsValid = true;
+    const invalidSteps: string[] = [];
+
+    this.stepsConfig.forEach((step) => {
+      if (
+        step.formlyFields &&
+        step.formlyFields.length > 0 &&
+        step.id !== 'completion'
+      ) {
+        const formGroup = this.getStepFormGroup(step.id);
+        if (!this.isStepValidExcludingDatepickers(step, formGroup)) {
+          allStepsValid = false;
+          invalidSteps.push(step.header);
+        }
+      }
+    });
+
+    if (!allStepsValid || this.topForm.invalid) {
       this.topForm.markAllAsTouched();
       this.mainForm.markAllAsTouched();
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Formulario Incompleto',
-        detail: 'Por favor, complete todos los campos requeridos.',
-      });
+      this.toastService.addWarn(
+        'Formulario Incompleto',
+        invalidSteps.length > 0
+          ? `Por favor, complete los campos requeridos en: ${invalidSteps.join(', ')}`
+          : 'Por favor, complete todos los campos requeridos.',
+      );
       return;
     }
 
@@ -552,21 +955,23 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         throw new Error(
           'El backend no devolvió un correlativo para la solicitud.',
         );
+      } else {
+        this.router.navigate(['/welcome']);
       }
 
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: 'Datos del formulario guardados correctamente.',
-      });
+      this.toastService.addSuccess(
+        'Éxito',
+        'Datos del formulario guardados correctamente.',
+      );
 
-      const jsonGeneral = {
+      const jsonGeneral: JsonGeneral = {
         tiposolicitud: 'partida Nacimiento',
+        idSolicitud: '01', // TODO reemplazar por valores reales
         alcaldia: 'Cojutepeque ',
         usuario: 'userCojutepeque',
-        correlativo: '',
+        correlativo: '12345678', // TODO reemplazar por valores reales
       };
-      const jsonTitular = {
+      const jsonTitular: JsonTitular = {
         documento: '02929384-8',
         primernombre: 'Gerardo',
         segundonombre: 'Alfonso',
@@ -578,13 +983,14 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
       const pdfData = this._buildPdfJson();
       const docDef = getRequestDocumentDefinition(pdfData, this.logoBase64);
 
-      const pdfResponse = await this.pdfService.sendPdfToRest(
-        docDef,
-        correlativo,
-        jsonGeneral,
-        jsonTitular,
-      );
-      const solicitudId = pdfResponse.id;
+      const pdfResponse: SolicitudResponse =
+        await this.pdfService.sendPdfToRest(
+          docDef,
+          correlativo,
+          jsonGeneral,
+          jsonTitular,
+        );
+      const solicitudId = pdfResponse.data;
 
       if (!solicitudId) {
         throw new Error(
@@ -592,11 +998,10 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         );
       }
 
-      this.messageService.add({
-        severity: 'info',
-        summary: 'Documento Enviado',
-        detail: `El PDF se envió correctamente con ID: ${solicitudId}`,
-      });
+      this.toastService.addInfo(
+        'Documento Enviado',
+        `El PDF se envió correctamente con ID: ${solicitudId}`,
+      );
 
       await this.uploadAnexos(solicitudId);
 
@@ -608,12 +1013,10 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
       }
     } catch (error) {
       console.error('Ocurrió un error en el proceso de envío:', error);
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Error en el Proceso',
-        detail:
-          'No se pudo completar el envío. Revisa la consola para más detalles.',
-      });
+      this.toastService.addError(
+        'Error en el Proceso',
+        'No se pudo completar el envío. Revisa la consola para más detalles.',
+      );
     } finally {
       this.isSubmitting = false;
     }
@@ -626,7 +1029,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const formData = new FormData();
-    formData.append('alcaldia', '0002');
+    formData.append('alcaldia', '002'); // Todo: reemplazar con valor real
     formData.append('uuidDocumento', solicitudId);
 
     this.anexosSubidos.forEach((anexo) => {
@@ -640,23 +1043,147 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
       await lastValueFrom(
         this.api.uploadAnexos(formData).pipe(takeUntil(this.destroy$)),
       );
-      this.messageService.add({
-        severity: 'success',
-        summary: 'Éxito',
-        detail: 'Todos los anexos se han subido correctamente.',
-      });
+      this.toastService.addSuccess(
+        'Éxito',
+        'Todos los anexos se han subido correctamente.',
+      );
     } catch (error) {
       console.error(
         `Error al subir los anexos para la solicitud ${solicitudId}:`,
         error,
       );
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Error de Subida',
-        detail: 'Ocurrió un error al subir uno o más anexos.',
-      });
+      this.toastService.addError(
+        'Error de Subida',
+        'Ocurrió un error al subir uno o más anexos.',
+      );
       throw error;
     }
+  }
+
+  // ========================================================
+  // ===          AUTOCOMPLETE METHODS FOR ANEXO FORM     ===
+  // ========================================================
+
+  onAutocompleteInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.autocompleteQuery = input.value;
+    this.filterSugerencias();
+
+    if (!this.isAutocompleteOpen && this.autocompleteQuery.length > 0) {
+      this.isAutocompleteOpen = true;
+    }
+  }
+
+  onAutocompleteFocus(): void {
+    if (
+      this.autocompleteQuery.length > 0 ||
+      this.filteredSugerencias.length > 0
+    ) {
+      this.isAutocompleteOpen = true;
+    }
+    this.filterSugerencias();
+  }
+
+  onAutocompleteBlur(): void {
+    // Delay closing to allow click events on options to fire
+    setTimeout(() => {
+      this.isAutocompleteOpen = false;
+      this.highlightedIndex = -1;
+    }, 200);
+  }
+
+  onAutocompleteKeydown(event: KeyboardEvent): void {
+    if (!this.isAutocompleteOpen) return;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        this.highlightNextOption();
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        this.highlightPreviousOption();
+        break;
+      case 'Enter':
+        event.preventDefault();
+        if (
+          this.highlightedIndex >= 0 &&
+          this.filteredSugerencias[this.highlightedIndex]
+        ) {
+          this.selectAutocompleteSuggestion(
+            this.filteredSugerencias[this.highlightedIndex],
+            this.highlightedIndex,
+          );
+        }
+        break;
+      case 'Escape':
+        event.preventDefault();
+        this.isAutocompleteOpen = false;
+        this.highlightedIndex = -1;
+        break;
+    }
+  }
+
+  toggleAutocompleteDropdown(): void {
+    this.isAutocompleteOpen = !this.isAutocompleteOpen;
+    if (this.isAutocompleteOpen) {
+      this.filterSugerencias();
+    } else {
+      this.highlightedIndex = -1;
+    }
+  }
+
+  selectAutocompleteSuggestion(suggestion: string, _index: number): void {
+    this.anexoForm.patchValue({ nombrePredefinido: suggestion });
+    this.autocompleteQuery = suggestion;
+    this.isAutocompleteOpen = false;
+    this.highlightedIndex = -1;
+
+    // Clear the custom name field since we selected a predefined one
+    this.anexoForm.patchValue({ nombrePersonalizado: '' });
+  }
+
+  getOptionId(index: number): string {
+    return `${this.autocompleteListId}-option-${index}`;
+  }
+
+  private filterSugerencias(): void {
+    const query = this.autocompleteQuery.toLowerCase().trim();
+
+    if (query.length === 0) {
+      this.filteredSugerencias = [...this.nombresPredefinidos];
+    } else {
+      this.filteredSugerencias = this.nombresPredefinidos.filter((nombre) =>
+        nombre.toLowerCase().includes(query),
+      );
+    }
+
+    // Reset highlighted index when filtering
+    this.highlightedIndex = -1;
+    this.updateHighlightedOptionId();
+  }
+
+  private highlightNextOption(): void {
+    if (this.filteredSugerencias.length === 0) return;
+
+    this.highlightedIndex =
+      (this.highlightedIndex + 1) % this.filteredSugerencias.length;
+    this.updateHighlightedOptionId();
+  }
+
+  private highlightPreviousOption(): void {
+    if (this.filteredSugerencias.length === 0) return;
+
+    this.highlightedIndex =
+      this.highlightedIndex <= 0
+        ? this.filteredSugerencias.length - 1
+        : this.highlightedIndex - 1;
+    this.updateHighlightedOptionId();
+  }
+
+  private updateHighlightedOptionId(): void {
+    this.highlightedOptionId =
+      this.highlightedIndex >= 0 ? this.getOptionId(this.highlightedIndex) : '';
   }
 
   ngOnDestroy(): void {
@@ -667,51 +1194,12 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  private convertBlobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
+  onLogoSelected(selectedLogo: LogoData) {
+    this.selectedLogo = selectedLogo;
   }
 
-  private async loadAvailableLogos() {
-    this.isLoadingLogos = true;
-    try {
-      this.logos = await lastValueFrom(this.logoService.getLogos());
-      const defaultLogo: LogoData = {
-        id: 'default',
-        nombre: 'Logo por defecto (Gobierno)',
-        imagebase64: this.logoBase64 || '',
-      };
-      this.logos.unshift(defaultLogo);
-      this.selectedLogo = defaultLogo;
-    } catch (error) {
-      console.error('Error al cargar los logos desde la API:', error);
-      const defaultLogo: LogoData = {
-        id: 'default',
-        nombre: 'Logo por defecto (Gobierno)',
-        imagebase64: this.logoBase64 || '',
-      };
-      this.logos = [defaultLogo];
-      this.selectedLogo = defaultLogo;
-    } finally {
-      this.isLoadingLogos = false;
-    }
-  }
-
-  filterLogos(event: { query: string }) {
-    const query = event.query.toLowerCase();
-    this.filteredLogos = this.logos.filter((logo) =>
-      logo.nombre.toLowerCase().includes(query),
-    );
-  }
-
-  onLogoSelect(selectedLogo: LogoData) {
-    if (selectedLogo) {
-      this.logoBase64 = selectedLogo.imagebase64;
-    }
+  onLogoBase64Changed(logoBase64: string) {
+    this.logoBase64 = logoBase64;
   }
 
   trackByStepId(index: number, step: StepConfig): string {
@@ -852,7 +1340,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         currentRowFields.length > 0
       ) {
         rows.push({
-          fieldGroupClassName: 'grid grid-cols-12 gap-x-6 mb-4',
+          fieldGroupClassName: 'tw-grid tw-grid-cols-12 tw-gap-x-6 tw-mb-4',
           fieldGroup: currentRowFields,
         });
         currentRowFields = [];
@@ -865,7 +1353,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
 
     if (currentRowFields.length > 0) {
       rows.push({
-        fieldGroupClassName: 'grid grid-cols-12 gap-x-6 mb-4',
+        fieldGroupClassName: 'tw-grid tw-grid-cols-12 tw-gap-x-6 tw-mb-4',
         fieldGroup: currentRowFields,
       });
     }
@@ -876,15 +1364,15 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
   private mapAnchoToColumnClass(ancho: string): string {
     switch (ancho) {
       case '25%':
-        return 'col-span-12 md:col-span-3';
+        return 'tw-col-span-12 md:tw-col-span-3';
       case '33%':
-        return 'col-span-12 md:col-span-4';
+        return 'tw-col-span-12 md:tw-col-span-4';
       case '50%':
-        return 'col-span-12 md:col-span-6';
+        return 'tw-col-span-12 md:tw-col-span-6';
       case '66%':
-        return 'col-span-12 md:col-span-8';
+        return 'tw-col-span-12 md:tw-col-span-8';
       case '75%':
-        return 'col-span-12 md:col-span-9';
+        return 'tw-col-span-12 md:tw-col-span-9';
       case '100%':
         return 'col-span-12';
       default:
@@ -894,7 +1382,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
 
   private createFieldConfig(
     campoSeccion: any,
-    parentId: string,
+    _parentId: string,
   ): FormlyFieldConfig {
     const campo: Campo = campoSeccion.campo;
 
@@ -909,6 +1397,27 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         required: campo.obligatorio === 'S',
         ayuda: campo.ayuda ?? '',
         ejemplo: campo.ejemplo ?? '',
+        ...(campo.lonMinima &&
+          campo.lonMinima > 0 && { minLength: campo.lonMinima }),
+        ...(campo.lonMaxima &&
+          campo.lonMaxima > 0 && { maxLength: campo.lonMaxima }),
+
+        // UPDATED PROPERTY STRUCTURE FROM BACKEND JSON:
+        // - campo.mascara: Display mask for input formatting (e.g., "99-99999999-9")
+        // - campo.validCompleja: Regex pattern for validation (e.g., "^\\d{2}-\\d{8}-\\d{1}$")
+
+        // Propiedades para InputMask - usar campo.mascara para formato visual
+        ...(campo.mascara &&
+          typeof campo.mascara === 'string' &&
+          campo.mascara.trim() !== '' && {
+            mask: campo.mascara,
+          }),
+        // NOTE: Do NOT pass campo.validCompleja directly to HTML pattern attribute
+        // as it may contain malformed regex that breaks HTML5 validation.
+        // Our custom validators in buildValidators() handle the regex validation properly.
+
+        // Add inputType for proper HTML input type handling
+        ...(campo.tipo && this.getInputTypeFromCampoTipo(campo.tipo)),
       },
       expressionProperties: {
         'props.disabled': () => {
@@ -930,7 +1439,28 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
           return permisoValue !== 'E';
         },
       },
-      validation: { messages: { required: 'Este campo es obligatorio.' } },
+      validators: this.buildValidators(campo),
+      validation: {
+        messages: {
+          required: 'Este campo es obligatorio.',
+          ...(campo.lonMinima &&
+            campo.lonMinima > 0 && {
+              minLength: `Debe tener al menos ${campo.lonMinima} caracteres.`,
+            }),
+          ...(campo.lonMaxima &&
+            campo.lonMaxima > 0 && {
+              maxLength: `No puede exceder ${campo.lonMaxima} caracteres.`,
+            }),
+          ...(campo.validCompleja && {
+            pattern: `El formato ingresado no es válido.`,
+          }),
+          // Mensajes de validación para campos numéricos
+          ...(campo.tipo?.toLowerCase() === 'number' && {
+            nonNegative: 'No se permiten números negativos.',
+            wholeNumber: 'Solo se permiten números enteros (sin decimales).',
+          }),
+        },
+      },
     };
 
     if (campo.busqueda === 'S') {
@@ -982,16 +1512,312 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     if (config.type === 'datepicker') {
       if (!config.props) config.props = {};
       config.props['styleClass'] = 'w-full';
+      config.props['showIcon'] = true;
+      config.props['dateFormat'] = 'dd/mm/yy';
+      config.props['readonlyInput'] = false; // Permitir entrada manual para mejorar usabilidad
+      config.props['showButtonBar'] = true;
+      config.props['todayButtonStyleClass'] =
+        'p-button-outlined p-button-secondary';
+      config.props['clearButtonStyleClass'] =
+        'p-button-outlined p-button-secondary';
+      config.props['dataType'] = 'date'; // Asegurar que devuelva objetos Date
+      config.props['keepInvalid'] = false; // No mantener valores inválidos
+      config.props['required'] = false; // Deshabilitar validación requerida para datepicker
+
+      // ⚠️ VALIDACIÓN COMPLETAMENTE DESHABILITADA PARA DATEPICKERS
+      // Remover todos los validadores para evitar el estado inválido
+      config.validators = {};
     }
 
     return config;
   }
 
+  private buildValidators(campo: Campo): any {
+    const validators: any = {};
+
+    // Validador de campo obligatorio
+    if (campo.obligatorio === 'S') {
+      validators.required = {
+        expression: (c: any) => {
+          if (!c.value && c.value !== 0) return false;
+
+          // Para campos de texto, verificar que no sea solo espacios en blanco
+          if (typeof c.value === 'string') {
+            return c.value.trim().length > 0;
+          }
+
+          // Para campos numéricos, aceptar 0 como valor válido
+          if (typeof c.value === 'number') {
+            return true;
+          }
+
+          // ⚠️ VALIDACIÓN DE FECHAS TEMPORALMENTE DESHABILITADA
+          // Para campos de fecha, aceptar cualquier valor por ahora
+          if (c.value instanceof Date) {
+            return true; // Aceptar cualquier fecha por ahora
+          }
+
+          // Para otros tipos de datos
+          return true;
+        },
+        message: `Este campo es obligatorio.`,
+      };
+    }
+
+    // Para campos numéricos, usar validación de rango numérico en lugar de longitud de cadena
+    if (campo.tipo?.toLowerCase() === 'number') {
+      // Validador de valor mínimo (en lugar de longitud mínima)
+      if (campo.lonMinima && campo.lonMinima > 0) {
+        validators.minValue = {
+          expression: (c: any) => {
+            if (!c.value && c.value !== 0) return true;
+            const numValue = Number(c.value);
+            return !isNaN(numValue) && numValue >= campo.lonMinima!;
+          },
+          message: `El valor debe ser mayor o igual a ${campo.lonMinima}.`,
+        };
+      }
+
+      // Validador de valor máximo (en lugar de longitud máxima)
+      if (campo.lonMaxima && campo.lonMaxima > 0) {
+        validators.maxValue = {
+          expression: (c: any) => {
+            if (!c.value && c.value !== 0) return true;
+            const numValue = Number(c.value);
+            return !isNaN(numValue) && numValue <= campo.lonMaxima!;
+          },
+          message: `El valor no puede ser mayor a ${campo.lonMaxima}.`,
+        };
+      }
+    } else {
+      // Para campos de texto, usar validación de longitud
+      if (campo.lonMinima && campo.lonMinima > 0) {
+        validators.minLength = {
+          expression: (c: any) =>
+            !c.value || c.value.length >= campo.lonMinima!,
+          message: `Debe tener al menos ${campo.lonMinima} caracteres.`,
+        };
+      }
+
+      if (campo.lonMaxima && campo.lonMaxima > 0) {
+        validators.maxLength = {
+          expression: (c: any) =>
+            !c.value || c.value.length <= campo.lonMaxima!,
+          message: `No puede exceder ${campo.lonMaxima} caracteres.`,
+        };
+      }
+    }
+
+    // Validador de expresión regular
+    // For number fields, handle regex validation specially
+    if (
+      campo.validCompleja &&
+      campo.validCompleja.trim() !== '' &&
+      !campo.mascara
+    ) {
+      validators.pattern = {
+        expression: (c: any) => {
+          // Si no hay valor, la validación pasa (para evitar errores en campos vacíos)
+          if (!c.value && c.value !== 0) return true;
+
+          try {
+            // Clean regex pattern - remove forward slash delimiters if present
+            let cleanPattern = campo.validCompleja!.trim();
+            if (cleanPattern.startsWith('/') && cleanPattern.endsWith('/')) {
+              cleanPattern = cleanPattern.slice(1, -1);
+            }
+
+            // Fix common regex issues in the pattern
+            cleanPattern = this.fixRegexPattern(cleanPattern);
+
+            const regex = new RegExp(cleanPattern);
+
+            // For number fields, test the string representation of the number
+            const valueAsString = String(c.value);
+
+            // Special handling for number fields with common number patterns
+            if (campo.tipo?.toLowerCase() === 'number') {
+              const numValue = Number(c.value);
+
+              // Pattern analysis for common integer patterns
+              const patternInfo = this.analyzeNumberPattern(cleanPattern);
+
+              if (patternInfo.isSimpleIntegerPattern) {
+                const isValid =
+                  !isNaN(numValue) &&
+                  Number.isInteger(numValue) &&
+                  numValue >= patternInfo.minValue;
+
+                console.log(`🔍 Number pattern validation (simplified):`, {
+                  value: valueAsString,
+                  numValue,
+                  originalPattern: campo.validCompleja,
+                  cleanPattern,
+                  patternInfo,
+                  isValid,
+                });
+
+                return isValid;
+              }
+            }
+
+            // For other patterns, use regex as normal
+            const isValid = regex.test(valueAsString);
+
+            console.log(`🔍 Pattern validation for field:`, {
+              value: valueAsString,
+              fieldType: campo.tipo,
+              originalPattern: campo.validCompleja,
+              cleanPattern,
+              isValid,
+            });
+
+            return isValid;
+          } catch (error) {
+            console.error(
+              'Error en regex pattern:',
+              campo.validCompleja,
+              error,
+            );
+            return true; // Si el regex es inválido, pasar la validación
+          }
+        },
+        message: `El formato ingresado no es válido.`,
+      };
+    }
+
+    // Validadores específicos para campos de tipo number
+    if (campo.tipo?.toLowerCase() === 'number') {
+      // Validador para números no negativos
+      validators.nonNegative = {
+        expression: (c: any) => {
+          // Si no hay valor, la validación pasa (igual que otros validadores)
+          if (!c.value && c.value !== 0) return true;
+
+          const numValue = Number(c.value);
+          return !isNaN(numValue) && numValue >= 0;
+        },
+        message: 'No se permiten números negativos.',
+      };
+
+      // Validador para números enteros (sin decimales)
+      validators.wholeNumber = {
+        expression: (c: any) => {
+          // Si no hay valor, la validación pasa (igual que otros validadores)
+          if (!c.value && c.value !== 0) return true;
+
+          const numValue = Number(c.value);
+          return !isNaN(numValue) && Number.isInteger(numValue);
+        },
+        message: 'Solo se permiten números enteros (sin decimales).',
+      };
+    }
+
+    return validators;
+  }
+
+  private fixRegexPattern(pattern: string): string {
+    // Fix common issues in regex patterns from backend
+    let fixedPattern = pattern;
+
+    // Fix double backslashes and spaces: '/^[1-9] \ d*$/' -> '^[1-9]\\d*$'
+    fixedPattern = fixedPattern.replace(/\s*\\\s*d/g, '\\d');
+
+    // Fix spaces before backslashes: '[1-9] \\d*' -> '[1-9]\\d*'
+    fixedPattern = fixedPattern.replace(/\s+\\/g, '\\');
+
+    // Fix spaces in character classes: '[1-9] d*' -> '[1-9]d*' (if \d was corrupted)
+    fixedPattern = fixedPattern.replace(/\[([^\]]+)\]\s*d/g, '[$1]\\d');
+
+    // Fix spaces within character classes: '[1-9] ' -> '[1-9]'
+    fixedPattern = fixedPattern.replace(/\[([^\]]+)\s+\]/g, '[$1]');
+
+    // Handle the specific case from the task: '/^[1-9] \\ d*$/' pattern
+    if (fixedPattern.includes('[1-9]') && fixedPattern.includes('d*')) {
+      // Ensure proper \d format
+      fixedPattern = fixedPattern.replace(/\s*\\?\s*d\*/g, '\\d*');
+    }
+
+    console.log(`🔧 Fixed regex pattern:`, {
+      original: pattern,
+      fixed: fixedPattern,
+    });
+
+    return fixedPattern;
+  }
+
+  private analyzeNumberPattern(pattern: string): {
+    isSimpleIntegerPattern: boolean;
+    minValue: number;
+    allowsZero: boolean;
+    patternType: string;
+  } {
+    // Analyze common integer patterns and determine if 0 is allowed
+
+    // Pattern 1: ^[1-9]\d*$ - Positive integers (1, 2, 3...), excludes 0
+    if (
+      /^\^?\[1-9\]\\d\*\$?$/.test(pattern) ||
+      /^\[1-9\]\\d\*$/.test(pattern)
+    ) {
+      return {
+        isSimpleIntegerPattern: true,
+        minValue: 1,
+        allowsZero: false,
+        patternType: 'positive-integers',
+      };
+    }
+
+    // Pattern 2: ^[0-9]\d*$ or ^\d+$ - Non-negative integers (0, 1, 2, 3...), includes 0
+    if (
+      /^\^?\[0-9\]\\d\*\$?$/.test(pattern) ||
+      /^\[0-9\]\\d\*$/.test(pattern) ||
+      /^\^?\\d\+\$?$/.test(pattern) ||
+      /^\\d\+$/.test(pattern)
+    ) {
+      return {
+        isSimpleIntegerPattern: true,
+        minValue: 0,
+        allowsZero: true,
+        patternType: 'non-negative-integers',
+      };
+    }
+
+    // Pattern 3: ^[0-9]+$ - Alternative non-negative integer pattern
+    if (/^\^?\[0-9\]\+\$?$/.test(pattern) || /^\[0-9\]\+$/.test(pattern)) {
+      return {
+        isSimpleIntegerPattern: true,
+        minValue: 0,
+        allowsZero: true,
+        patternType: 'non-negative-integers-alt',
+      };
+    }
+
+    // Not a recognized simple integer pattern - let regex handle it
+    return {
+      isSimpleIntegerPattern: false,
+      minValue: 0,
+      allowsZero: true,
+      patternType: 'complex',
+    };
+  }
+
   onSelectChange(field: FormlyFieldConfig, event: any): void {
     const selectedValue = event?.value;
 
+    // Clear PDF field cache when form data changes
+    this._clearPdfFieldCache();
+
+    this.removeSubsequentFields(field);
+
     if (!selectedValue) {
-      this.removeSubsequentFields(field);
+      this.stepsConfig = [];
+      this.mainForm = new FormGroup({});
+      this.mainModel = {};
+      this.noDataMessage = null;
+      this.correlativoG = '';
+      this.isLoading = false;
+      this.topSelectionCompleted = false;
+      this.etapaSeleccionadaId = 1;
       return;
     }
 
@@ -1016,27 +1842,36 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
 
             const targetFieldGroup = this.topFields[0]?.fieldGroup;
             if (targetFieldGroup) {
-              targetFieldGroup.push(newField);
-              this.topFields = [...this.topFields];
+              const existingFieldIndex = targetFieldGroup.findIndex(
+                (f) => f.key === newField.key,
+              );
+
+              if (existingFieldIndex === -1) {
+                targetFieldGroup.push(newField);
+                this.topFields = [...this.topFields];
+                this.cdr.detectChanges();
+              }
             }
           } else {
-            this.isLoading = true;
-            this.etapaSeleccionadaId = 2;
-            this.idTipoDocumento = parseInt(selectedValue, 10);
+            if (!this.topSelectionCompleted) {
+              this.isLoading = true;
+              this.etapaSeleccionadaId = 2;
+              this.idTipoDocumento = parseInt(selectedValue, 10);
+              this.topSelectionCompleted = true;
 
-            this.api
-              .getCorrelativo(this.idTipoDocumento)
-              .pipe(takeUntil(this.destroy$))
-              .subscribe({
-                next: (correlativoString: string) => {
-                  this.correlativoG = correlativoString;
-                },
-                error: (err) =>
-                  console.error('Error al obtener el correlativo:', err),
-              });
+              this.api
+                .getCorrelativo(this.idTipoDocumento)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                  next: (correlativoString: string) => {
+                    this.correlativoG = correlativoString;
+                  },
+                  error: (err) =>
+                    console.error('Error al obtener el correlativo:', err),
+                });
 
-            this.removeSubsequentFields(field);
-            this.loadFormUniq(selectedValue);
+              this.loadFormUniq(selectedValue);
+            }
           }
         },
         error: (err) =>
@@ -1056,7 +1891,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     }[] = [],
   ): FormlyFieldConfig {
     const fieldConfig: FormlyFieldConfig = {
-      className: 'col-span-12 md:col-span-6 lg:col-span-4',
+      className: 'tw-col-span-12 md:tw-col-span-6 lg:tw-col-span-4',
       key,
       type: 'select',
       props: {
@@ -1090,9 +1925,11 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
   private removeSubsequentFields(currentField: FormlyFieldConfig): void {
     const fieldGroup = this.topFields[0]?.fieldGroup;
     if (!fieldGroup) return;
+
     const currentIndex = fieldGroup.findIndex(
       (f) => f.key === currentField.key,
     );
+
     if (currentIndex > -1 && fieldGroup.length > currentIndex + 1) {
       const fieldsToRemove = fieldGroup.length - (currentIndex + 1);
 
@@ -1100,20 +1937,44 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         const keyToRemove = fieldGroup[i].key;
         if (keyToRemove) {
           delete this.topModel[keyToRemove as string];
+          const control = this.topForm.get(keyToRemove as string);
+          if (control) {
+            this.topForm.removeControl(keyToRemove as string);
+          }
         }
       }
 
       fieldGroup.splice(currentIndex + 1, fieldsToRemove);
       this.topFields = [...this.topFields];
-      this.stepsConfig = [];
-      this.mainForm = new FormGroup({});
-      this.mainModel = {};
-      this.noDataMessage = null;
-      this.correlativoG = '';
+
+      if (fieldsToRemove > 0) {
+        this.stepsConfig = [];
+        this.mainForm = new FormGroup({});
+        this.mainModel = {};
+        this.noDataMessage = null;
+        this.correlativoG = '';
+        this.isLoading = false;
+        this.topSelectionCompleted = false;
+        this.etapaSeleccionadaId = 1;
+      }
+
+      this.cdr.detectChanges();
     }
   }
 
   private determinarTipoCampo = (campo: Campo): string => {
+    // Si hay máscara o regex definida, usar input con directive
+    if (
+      (campo.mascara &&
+        typeof campo.mascara === 'string' &&
+        campo.mascara.trim() !== '') ||
+      (campo.validCompleja &&
+        typeof campo.validCompleja === 'string' &&
+        campo.validCompleja.trim() !== '')
+    ) {
+      return 'input'; // Use regular input with mask/regex directive
+    }
+
     const mapeoTipos: { [key: string]: string } = {
       text: 'input',
       string: 'input',
@@ -1131,80 +1992,336 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
     return mapeoTipos[tipo] || 'input';
   };
 
+  private getInputTypeFromCampoTipo(campoTipo: string): {
+    inputType?: string;
+    min?: number;
+    step?: number;
+  } {
+    const tipo = campoTipo?.toLowerCase();
+    switch (tipo) {
+      case 'number':
+        return {
+          inputType: 'number',
+          min: 0, // Prevent negative numbers
+          step: 1, // Only allow whole numbers (integers)
+        };
+      case 'email':
+        return { inputType: 'email' };
+      case 'time':
+        return { inputType: 'time' };
+      case 'password':
+        return { inputType: 'password' };
+      case 'tel':
+        return { inputType: 'tel' };
+      case 'url':
+        return { inputType: 'url' };
+      default:
+        return {};
+    }
+  }
+
   nextStep(currentStepIndex: number): void {
     const step = this.stepsConfig[currentStepIndex];
     if (step.formlyFields && step.formlyFields.length > 0) {
       const formGroup = this.getStepFormGroup(step.id);
-      if (formGroup.invalid) {
+
+      // Validación especial que excluye datepickers
+      const isFormValidExcludingDatepickers =
+        this.isStepValidExcludingDatepickers(step, formGroup);
+
+      if (!isFormValidExcludingDatepickers) {
         formGroup.markAllAsTouched();
+
+        // Buscar campos obligatorios que estén vacíos para mostrar mensaje específico
+        const emptyRequiredFields = this.findEmptyRequiredFields(
+          step,
+          formGroup,
+        );
+        if (emptyRequiredFields.length > 0) {
+          const fieldNames = emptyRequiredFields.join(', ');
+          this.toastService.addWarn(
+            'Campos obligatorios',
+            `Los siguientes campos son obligatorios: ${fieldNames}`,
+            5000,
+          );
+        } else {
+          this.toastService.addWarn(
+            'Formulario inválido',
+            'Por favor, corrija los errores antes de continuar.',
+            5000,
+          );
+        }
         return;
       }
     }
+
+    // Advance to the next step
     if (this.activeStepIndex < this.stepsConfig.length - 1) {
       this.activeStepIndex++;
+      this.cdr.detectChanges(); // Force change detection to update the stepper
     }
   }
 
   prevStep(): void {
     if (this.activeStepIndex > 0) {
       this.activeStepIndex--;
+      this.cdr.detectChanges(); // Force change detection to update the stepper
     }
+  }
+
+  onStepChange(stepIndex: number): void {
+    this.activeStepIndex = stepIndex;
+    this.cdr.detectChanges(); // Force change detection to update the stepper
+  }
+
+  private isStepValidExcludingDatepickers(
+    step: StepConfig,
+    formGroup: FormGroup,
+  ): boolean {
+    if (!step.formlyFields) return true;
+
+    let isValid = true;
+
+    // Función recursiva para validar campos excluyendo datepickers
+    const validateFields = (fields: FormlyFieldConfig[]) => {
+      fields.forEach((field) => {
+        if (field.fieldGroup) {
+          validateFields(field.fieldGroup);
+        } else if (field.key && field.type !== 'datepicker') {
+          const control = formGroup.get(field.key as string);
+          if (
+            control &&
+            field.props?.required &&
+            (!control.value ||
+              (typeof control.value === 'string' &&
+                control.value.trim() === ''))
+          ) {
+            isValid = false;
+          }
+        }
+      });
+    };
+
+    validateFields(step.formlyFields);
+    return isValid;
+  }
+
+  private findEmptyRequiredFields(
+    step: StepConfig,
+    formGroup: FormGroup,
+  ): string[] {
+    const emptyRequiredFields: string[] = [];
+
+    if (!step.formlyFields) return emptyRequiredFields;
+
+    // Función recursiva para buscar campos en formularios anidados
+    const searchFields = (fields: FormlyFieldConfig[]) => {
+      fields.forEach((field) => {
+        // Si el campo tiene fieldGroup (es un grupo), buscar recursivamente
+        if (field.fieldGroup) {
+          searchFields(field.fieldGroup);
+        }
+        // Si es un campo individual
+        else if (field.key) {
+          const control = formGroup.get(field.key as string);
+          // ⚠️ EXCLUIR DATEPICKERS DE LA VALIDACIÓN
+          if (
+            control &&
+            field.props?.required &&
+            control.invalid &&
+            field.type !== 'datepicker'
+          ) {
+            const fieldName = field.props?.label || (field.key as string);
+            emptyRequiredFields.push(fieldName);
+          }
+        }
+      });
+    };
+
+    searchFields(step.formlyFields);
+    return emptyRequiredFields;
   }
 
   private _findValue(
     targetSections: string[],
     targetFields: string[],
     separator = ' ',
+    useCache = true,
   ): string {
+    const cacheKey = `${targetSections.join(',')}-${targetFields.join(',')}-${separator}`;
+    console.log(cacheKey);
+    // Return cached value if available and cache is enabled
+    if (useCache && this.pdfFieldCache[cacheKey]) {
+      return this.pdfFieldCache[cacheKey];
+    }
+
     const values: { [key: string]: string } = {};
+
     this.stepsConfig.forEach((step) => {
       if (!step.formlyFields) return;
+
       let currentSubSection = '';
+      const currentParentSection = step.header;
+
       step.formlyFields.forEach((config) => {
         if (config.template) {
           const match = config.template.match(/>(.*?)</);
           currentSubSection = match ? match[1] : '';
         }
+
         if (config.fieldGroup) {
-          const contextTitle = currentSubSection || step.header;
-          if (
-            targetSections.some((ts) =>
-              contextTitle.toLowerCase().includes(ts.toLowerCase()),
-            )
-          ) {
+          // Create hierarchical context array
+          const contextHierarchy = [currentParentSection.toLowerCase()];
+          if (currentSubSection) {
+            contextHierarchy.push(currentSubSection.toLowerCase());
+          }
+
+          // Check if all target sections match in the hierarchy
+          const isTargetSection = this.matchesHierarchicalSections(
+            targetSections,
+            contextHierarchy,
+          );
+
+          if (isTargetSection) {
             config.fieldGroup.forEach((field) => {
               const fieldLabel = field.props?.label?.toLowerCase() || '';
               const keyword = targetFields.find((tf) =>
                 fieldLabel.includes(tf.toLowerCase()),
               );
-              if (keyword) {
+
+              if (keyword && field.key) {
                 const fieldValue =
                   this.mainModel[step.id]?.[field.key as string];
-                if (fieldValue) values[keyword] = fieldValue;
+                if (
+                  fieldValue !== null &&
+                  fieldValue !== undefined &&
+                  fieldValue !== ''
+                ) {
+                  values[keyword] = String(fieldValue);
+                }
+                console.log(fieldValue);
               }
             });
           }
         }
       });
     });
-    return targetFields
+
+    const result = targetFields
       .map((k) => values[k])
       .filter(Boolean)
       .join(separator);
+
+    // Cache the result if cache is enabled
+    if (useCache) {
+      this.pdfFieldCache[cacheKey] = result;
+    }
+
+    return result;
+  }
+
+  private _clearPdfFieldCache(): void {
+    this.pdfFieldCache = {};
+  }
+
+  private matchesHierarchicalSections(
+    targetSections: string[],
+    contextHierarchy: string[],
+  ): boolean {
+    // For single section targets, use the original logic
+    if (targetSections.length === 1) {
+      return contextHierarchy.some((context) =>
+        context.includes(targetSections[0].toLowerCase()),
+      );
+    }
+
+    // For hierarchical targets, check if all sections are present in order
+    let currentHierarchyIndex = 0;
+
+    for (const targetSection of targetSections) {
+      let found = false;
+
+      // Look for this target section in the remaining hierarchy
+      for (let i = currentHierarchyIndex; i < contextHierarchy.length; i++) {
+        if (contextHierarchy[i].includes(targetSection.toLowerCase())) {
+          currentHierarchyIndex = i + 1;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private _buildPdfJson(): any {
-    const data = JSON.parse(JSON.stringify(this.formDataParaPdf));
-    data.partidaNo = this._findValue(
-      ['general'],
-      ['partida no', 'número de partida'],
-    );
+    try {
+      // Clear cache before building new PDF data
+      this._clearPdfFieldCache();
 
-    data.libro = this._findValue(['general'], ['libro']);
-    data.folio = this._findValue(['general'], ['folio']);
-    data.anio = this._findValue(['general'], ['año']);
+      // Clone the template data
+      const data = JSON.parse(JSON.stringify(this.formDataParaPdf));
+      const missingFields: string[] = [];
+      const invalidFields: string[] = [];
+      console.log(this.PDF_FIELD_MAPPINGS);
+      // Apply field mappings
+      this.PDF_FIELD_MAPPINGS.forEach((mapping) => {
+        const value = this._findValue(
+          mapping.sections,
+          mapping.fields,
+          mapping.separator || ' ',
+        );
+        console.log(value);
+        // Validate the field value
+        if (mapping.required && (!value || value.trim() === '')) {
+          missingFields.push(mapping.targetField);
+        }
 
-    return data;
+        if (value && mapping.validator && !mapping.validator(value)) {
+          invalidFields.push(mapping.targetField);
+        }
+
+        // Assign the value to the target field
+        data[mapping.targetField] = value || '';
+      });
+
+      // Log validation issues (non-blocking)
+      if (missingFields.length > 0) {
+        console.warn('Missing required PDF fields:', missingFields);
+      }
+
+      if (invalidFields.length > 0) {
+        console.warn('Invalid PDF field values:', invalidFields);
+      }
+
+      // Add metadata
+      data._metadata = {
+        generatedAt: new Date().toISOString(),
+        formVersion: '1.0',
+        missingFields,
+        invalidFields,
+      };
+
+      return data;
+    } catch (error) {
+      console.error('Error building PDF JSON:', error);
+
+      // Return fallback data structure
+      const fallbackData = JSON.parse(JSON.stringify(this.formDataParaPdf));
+      fallbackData._metadata = {
+        generatedAt: new Date().toISOString(),
+        formVersion: '1.0',
+        error: 'Failed to build PDF data properly',
+        missingFields: [],
+        invalidFields: [],
+      };
+
+      return fallbackData;
+    }
   }
 
   fillStepWithTestData(stepId: string): void {
@@ -1226,11 +2343,10 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
       }
     });
 
-    this.messageService.add({
-      severity: 'success',
-      summary: 'Datos de Prueba Cargados',
-      detail: 'Los campos han sido llenados con datos de ejemplo.',
-    });
+    this.toastService.addSuccess(
+      'Datos de Prueba Cargados',
+      'Los campos han sido llenados con datos de ejemplo.',
+    );
   }
 
   private fillFieldsRecursively(
@@ -1244,7 +2360,7 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
       } else if (field.key && field.props?.label) {
         const fieldTypeString =
           typeof field.type === 'string' ? field.type : undefined;
-        const testValue = this.getTestValueForField(
+        const testValue = this.fieldValueMapper.getTestValueForField(
           field.props.label,
           fieldTypeString,
         );
@@ -1258,447 +2374,6 @@ export class RegistryForm implements OnInit, OnDestroy, AfterViewInit {
         }
       }
     });
-  }
-
-  private getTestValueForField(fieldLabel: string, fieldType?: string): any {
-    const label = fieldLabel.toLowerCase();
-
-    const testData = {
-      nombres: [
-        'Carlos',
-        'María',
-        'José',
-        'Ana',
-        'Juan',
-        'Sofía',
-        'Luis',
-        'Elena',
-      ],
-      apellidos: [
-        'Hernández',
-        'Rivera',
-        'Martínez',
-        'García',
-        'López',
-        'Pérez',
-        'Flores',
-      ],
-      parentescos: [
-        'Padre',
-        'Madre',
-        'Abuelo(a)',
-        'Tío(a)',
-        'Representante Legal',
-      ],
-      profesiones: [
-        'Doctor(a)',
-        'Ingeniero(a)',
-        'Abogado(a)',
-        'Estudiante',
-        'Contador(a)',
-        'Oficios Domésticos',
-        'Comerciante',
-        'Agricultor(a)',
-        'Mecánico(a)',
-      ],
-      ocupaciones: [
-        'Empleado(a) público',
-        'Trabajador(a) independiente',
-        'Ama de casa',
-        'Empleado(a) privado',
-        'Jubilado(a)',
-        'Desempleado(a)',
-      ],
-      nacionalidades: [
-        'Salvadoreña',
-        'Guatemalteca',
-        'Hondureña',
-        'Estadounidense',
-      ],
-      paises: [
-        'El Salvador',
-        'Guatemala',
-        'Honduras',
-        'Estados Unidos',
-        'Nicaragua',
-      ],
-      departamentos: [
-        'Santa Ana',
-        'San Salvador',
-        'San Miguel',
-        'La Libertad',
-        'Sonsonate',
-        'Ahuachapán',
-      ],
-      municipios: [
-        'Santa Ana',
-        'Chalchuapa',
-        'Metapán',
-        'Soyapango',
-        'Ilopango',
-        'Mejicanos',
-      ],
-      cantones: [
-        'El Brazo',
-        'Las Flores',
-        'San Antonio',
-        'El Portezuelo',
-        'La Esperanza',
-        'Monte Verde',
-      ],
-      distritos: [
-        'Distrito Centro',
-        'Distrito Norte',
-        'Distrito Sur',
-        'Distrito Este',
-        'Distrito Oeste',
-      ],
-      documentos: ['DUI', 'Pasaporte', 'Carné de Residente'],
-      estadosFamiliares: [
-        'Soltero(a)',
-        'Casado(a)',
-        'Acompañado(a)',
-        'Divorciado(a)',
-      ],
-      generos: ['Masculino', 'Femenino'],
-      direcciones: [
-        'Colonia San Benito, Pasaje 1, Casa #5',
-        'Residencial Las Arboledas, Polígono D, Casa #12',
-        'Cantón El Portezuelo, Calle Principal',
-        'Barrio San Jacinto, 10a Avenida Sur',
-      ],
-      direccionesEspecificas: [
-        'Casa #15, Calle Los Almendros',
-        'Apartamento 2B, Edificio Central',
-        'Km 12.5 Carretera a San Miguel',
-        'Final 25 Avenida Norte, #245',
-        'Condominio Las Palmeras, Casa 8',
-      ],
-      gradosEducativos: [
-        'Ninguno',
-        '1° a 3° grado',
-        '4° a 6° grado',
-        '7° a 9° grado',
-        'Bachillerato',
-        'Técnico',
-        'Universitario',
-        'Postgrado',
-      ],
-      respuestasSiNo: ['Sí', 'No'],
-      tiposParto: ['Simple', 'Múltiple'],
-      clasesParto: ['Natural', 'Cesárea'],
-      tiposAsistencia: [
-        'Médico',
-        'Enfermera',
-        'Partera',
-        'Comadrona',
-        'Sin asistencia',
-      ],
-      nombresAsistentes: [
-        'Dr. José Antonio Martínez',
-        'Dra. María Elena Rodríguez',
-        'Enfermera Carmen López',
-        'Partera Rosa Hernández',
-        'Dr. Luis Alberto Gómez',
-      ],
-      preposicionesCasada: ['de', 'del', 'de la', 'vda. de', 'viuda de'],
-      tiposCentroSalud: [
-        'Hospital Nacional',
-        'Clínica Comunal',
-        'Unidad de Salud',
-        'Hospital Privado',
-        'Centro de Salud Rural',
-        'Dispensario Médico',
-      ],
-    };
-
-    if (
-      label.includes('parentesco con el inscrito') ||
-      label.includes('parentesco')
-    ) {
-      return this.getRandomFromArray(testData.parentescos);
-    }
-    if (label.includes('primer nombre')) {
-      return this.getRandomFromArray(testData.nombres);
-    }
-    if (label.includes('segundo nombre')) {
-      return this.getRandomFromArray(testData.nombres);
-    }
-    if (label.includes('tercer nombre')) {
-      return Math.random() > 0.5
-        ? this.getRandomFromArray(testData.nombres)
-        : '';
-    }
-    if (label.includes('primer apellido')) {
-      return this.getRandomFromArray(testData.apellidos);
-    }
-    if (label.includes('segundo apellido')) {
-      return this.getRandomFromArray(testData.apellidos);
-    }
-    if (label.includes('preposición del apellido de casada')) {
-      return this.getRandomFromArray(testData.preposicionesCasada);
-    }
-    if (label.includes('apellido de casada')) {
-      return this.getRandomFromArray(testData.apellidos);
-    }
-    if (
-      label.includes('fecha de nacimiento') ||
-      (fieldType === 'datepicker' && label.includes('nacimiento'))
-    ) {
-      return this.getRandomBirthDate();
-    }
-    if (
-      label.includes('fecha de registro') ||
-      (fieldType === 'datepicker' && label.includes('registro'))
-    ) {
-      const today = new Date();
-      const month = (today.getMonth() + 1).toString().padStart(2, '0');
-      const day = today.getDate().toString().padStart(2, '0');
-      const year = today.getFullYear().toString();
-      return `${month}/${day}/${year}`;
-    }
-    if (label.includes('lugar de nacimiento')) {
-      return (
-        this.getRandomFromArray(testData.municipios) +
-        ', ' +
-        this.getRandomFromArray(testData.departamentos)
-      );
-    }
-    if (
-      label.includes('país de nacimiento') ||
-      label.includes('pais de nacimiento')
-    ) {
-      return this.getRandomFromArray(testData.paises);
-    }
-    if (label.includes('departamento de nacimiento')) {
-      return this.getRandomFromArray(testData.departamentos);
-    }
-    if (label.includes('municipio de nacimiento')) {
-      return this.getRandomFromArray(testData.municipios);
-    }
-    if (label.includes('distrito de nacimiento')) {
-      return this.getRandomFromArray(testData.distritos);
-    }
-    if (
-      label.includes('cantón de nacimiento') ||
-      label.includes('canton de nacimiento')
-    ) {
-      return this.getRandomFromArray(testData.cantones);
-    }
-    if (
-      label.includes('dirección específica de nacimiento') ||
-      label.includes('direccion especifica de nacimiento')
-    ) {
-      return this.getRandomFromArray(testData.direccionesEspecificas);
-    }
-    if (
-      label.includes('país de residencia') ||
-      label.includes('pais de residencia')
-    ) {
-      return this.getRandomFromArray(testData.paises);
-    }
-    if (label.includes('departamento de residencia según dui')) {
-      return this.getRandomFromArray(testData.departamentos);
-    }
-    if (label.includes('distrito o ciudad de residencia según dui')) {
-      return this.getRandomFromArray(testData.municipios);
-    }
-    if (label.includes('departamento de residencia')) {
-      return this.getRandomFromArray(testData.departamentos);
-    }
-    if (label.includes('municipio de residencia')) {
-      return this.getRandomFromArray(testData.municipios);
-    }
-    if (label.includes('distrito de residencia')) {
-      return this.getRandomFromArray(testData.distritos);
-    }
-    if (label.includes('distrito de registro')) {
-      return this.getRandomFromArray(testData.distritos);
-    }
-    if (
-      label.includes('cantón de residencia') ||
-      label.includes('canton de residencia')
-    ) {
-      return this.getRandomFromArray(testData.cantones);
-    }
-    if (label.includes('dirección específica')) {
-      return this.getRandomFromArray(testData.direccionesEspecificas);
-    }
-    if (label.includes('oficina de registro')) {
-      return 'Oficina Regional ' + this.getRandomFromArray(testData.municipios);
-    }
-    if (label.includes('nui')) {
-      return this.generateRandomNUI();
-    }
-    if (label.includes('tipo de documento')) {
-      return this.getRandomFromArray(testData.documentos);
-    }
-    if (
-      label.includes('numero de documento') ||
-      label.includes('número de documento')
-    ) {
-      return this.generateRandomDUI();
-    }
-    if (label.includes('edad')) {
-      return Math.floor(Math.random() * 60) + 18;
-    }
-    if (label.includes('nacionalidad')) {
-      return this.getRandomFromArray(testData.nacionalidades);
-    }
-    if (label.includes('estado familiar') || label.includes('estado civil')) {
-      return this.getRandomFromArray(testData.estadosFamiliares);
-    }
-    if (
-      label.includes('genero') ||
-      label.includes('género') ||
-      label.includes('sexo')
-    ) {
-      return this.getRandomFromArray(testData.generos);
-    }
-    if (
-      label.includes('profesión u oficio') ||
-      label.includes('profesion u oficio')
-    ) {
-      return this.getRandomFromArray(testData.profesiones);
-    }
-    if (
-      label.includes('ocupación actual') ||
-      label.includes('ocupacion actual')
-    ) {
-      return this.getRandomFromArray(testData.ocupaciones);
-    }
-    if (label.includes('profesion') || label.includes('profesión')) {
-      return this.getRandomFromArray(testData.profesiones);
-    }
-    if (label.includes('sabe leer y escribir')) {
-      return this.getRandomFromArray(testData.respuestasSiNo);
-    }
-    if (label.includes('grado aprobado')) {
-      return this.getRandomFromArray(testData.gradosEducativos);
-    }
-    if (
-      label.includes('número de hijos') ||
-      label.includes('numero de hijos')
-    ) {
-      return Math.floor(Math.random() * 8) + 1;
-    }
-    if (label.includes('nacidos vivos que continuan vivos')) {
-      return Math.floor(Math.random() * 5) + 1;
-    }
-    if (label.includes('nacidos vivos que han fallecido')) {
-      return Math.floor(Math.random() * 3);
-    }
-    if (label.includes('nacieron muertos')) {
-      return Math.floor(Math.random() * 2);
-    }
-    if (label.includes('tipo de parto')) {
-      return this.getRandomFromArray(testData.tiposParto);
-    }
-    if (label.includes('clase de parto')) {
-      return this.getRandomFromArray(testData.clasesParto);
-    }
-    if (
-      label.includes('duración de embarazo en semanas') ||
-      label.includes('duracion de embarazo en semanas')
-    ) {
-      return Math.floor(Math.random() * 12) + 28;
-    }
-    if (label.includes('tipo de asistencia')) {
-      return this.getRandomFromArray(testData.tiposAsistencia);
-    }
-    if (label.includes('nombre del asistente')) {
-      return this.getRandomFromArray(testData.nombresAsistentes);
-    }
-    if (label.includes('tipo de centro de salud')) {
-      return this.getRandomFromArray(testData.tiposCentroSalud);
-    }
-    if (label.includes('peso al nacer en gramos')) {
-      return Math.floor(Math.random() * 2000) + 2500;
-    }
-    if (
-      label.includes('talla al nacer en centimetros') ||
-      label.includes('talla al nacer en centímetros')
-    ) {
-      return Math.floor(Math.random() * 10) + 45;
-    }
-    if (label.includes('hora de nacimiento')) {
-      const hours = Math.floor(Math.random() * 24)
-        .toString()
-        .padStart(2, '0');
-      const minutes = Math.floor(Math.random() * 60)
-        .toString()
-        .padStart(2, '0');
-      return `${hours}:${minutes}`;
-    }
-    if (
-      label.includes('número de boleta') ||
-      label.includes('numero de boleta')
-    ) {
-      return Math.floor(Math.random() * 900000) + 100000;
-    }
-    if (label.includes('país') || label.includes('pais')) {
-      return this.getRandomFromArray(testData.paises);
-    }
-    if (label.includes('departamento')) {
-      return this.getRandomFromArray(testData.departamentos);
-    }
-    if (label.includes('municipio')) {
-      return this.getRandomFromArray(testData.municipios);
-    }
-    if (label.includes('cantón') || label.includes('canton')) {
-      return this.getRandomFromArray(testData.cantones);
-    }
-    if (label.includes('distrito')) {
-      return this.getRandomFromArray(testData.distritos);
-    }
-    if (label.includes('direccion') || label.includes('dirección')) {
-      return this.getRandomFromArray(testData.direcciones);
-    }
-    if (fieldType === 'input' && label.includes('nombre')) {
-      return this.getRandomFromArray(testData.nombres);
-    }
-    if (fieldType === 'input' && label.includes('apellido')) {
-      return this.getRandomFromArray(testData.apellidos);
-    }
-    if (
-      fieldType === 'number' ||
-      label.includes('numero') ||
-      label.includes('número')
-    ) {
-      return Math.floor(Math.random() * 1000000) + 1;
-    }
-    if (fieldType === 'input' && !label.includes('fecha')) {
-      return 'Dato de prueba';
-    }
-
-    return null;
-  }
-
-  private getRandomFromArray(array: string[]): string {
-    return array[Math.floor(Math.random() * array.length)];
-  }
-
-  private getRandomBirthDate(): string {
-    const start = new Date(1950, 0, 1);
-    const end = new Date(2010, 11, 31);
-    const randomDate = new Date(
-      start.getTime() + Math.random() * (end.getTime() - start.getTime()),
-    );
-    const month = (randomDate.getMonth() + 1).toString().padStart(2, '0');
-    const day = randomDate.getDate().toString().padStart(2, '0');
-    const year = randomDate.getFullYear().toString();
-    return `${month}/${day}/${year}`;
-  }
-
-  private generateRandomDUI(): string {
-    const randomNumber = Math.floor(Math.random() * 100000000)
-      .toString()
-      .padStart(8, '0');
-    return `${randomNumber.substring(0, 8)}-${Math.floor(Math.random() * 10)}`;
-  }
-
-  private generateRandomNUI(): string {
-    return Math.floor(Math.random() * 1000000000).toString();
   }
 
   handleSearchClick(field: FormlyFieldConfig) {

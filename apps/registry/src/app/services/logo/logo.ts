@@ -19,50 +19,52 @@ export class Logo {
       {
         id: 'gobierno',
         nombre: 'Logo Gobierno',
-        imagebase64: ''
+        imagebase64: '',
       },
       {
         id: 'rnpn-footer',
         nombre: 'RNPN Footer Logo',
-        imagebase64: ''
-      }
+        imagebase64: '',
+      },
     ];
-    
+
     // Load the actual image data for each logo
     return from(this.loadLogosWithBase64Data(availableLogos));
   }
 
   getLogoById(id: string): Observable<LogoData> {
     return this.getLogos().pipe(
-      map((logos) => logos.find(logo => logo.id === id)),
+      map((logos) => logos.find((logo) => logo.id === id)),
       map((logo) => {
         if (!logo) {
           throw new Error(`Logo with id '${id}' not found`);
         }
         return logo;
-      })
+      }),
     );
   }
 
-  private async loadLogosWithBase64Data(logos: LogoData[]): Promise<LogoData[]> {
+  private async loadLogosWithBase64Data(
+    logos: LogoData[],
+  ): Promise<LogoData[]> {
     const logoMap: { [key: string]: string } = {
-      'gobierno': '/assets/logos/gobierno.png',
-      'rnpn-footer': '/assets/logos/RNPNFooter.png'
+      gobierno: '/assets/logos/gobierno.png',
+      'rnpn-footer': '/assets/logos/RNPNFooter.png',
     };
 
     const loadedLogos: LogoData[] = [];
-    
+
     for (const logo of logos) {
       try {
         const logoPath = logoMap[logo.id];
         if (logoPath) {
           const response = await lastValueFrom(
-            this.http.get(logoPath, { responseType: 'blob' })
+            this.http.get(logoPath, { responseType: 'blob' }),
           );
           const base64Data = await this.convertBlobToBase64(response);
           loadedLogos.push({
             ...logo,
-            imagebase64: base64Data
+            imagebase64: base64Data,
           });
         }
       } catch (error) {
@@ -71,7 +73,7 @@ export class Logo {
         loadedLogos.push(logo);
       }
     }
-    
+
     return loadedLogos;
   }
 

@@ -1,6 +1,6 @@
+import babelParser from '@babel/eslint-parser';
 import nx from '@nx/eslint-plugin';
 import eslintPluginPrettier from 'eslint-plugin-prettier';
-import babelParser from '@babel/eslint-parser';
 
 export default [
   {
@@ -45,15 +45,57 @@ export default [
         'error',
         {
           enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+          allow: [
+            '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
+            'libs/src/lib/routing/**',
+            '.*tailwind.*config.*js$', // Allow tailwind config files
+          ],
+          checkDynamicDependenciesExceptions: ['routing', 'registry'],
           depConstraints: [
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'scope:app',
+              onlyDependOnLibsWithTags: [
+                'scope:feature',
+                'scope:ui',
+                'scope:data',
+                'scope:util',
+              ],
+            },
+            {
+              sourceTag: 'scope:feature',
+              onlyDependOnLibsWithTags: [
+                'scope:feature',
+                'scope:ui',
+                'scope:data',
+                'scope:util',
+                'scope:app', // Allow routing library to import from apps for microfrontend routing
+              ],
+            },
+            {
+              sourceTag: 'scope:ui',
+              onlyDependOnLibsWithTags: [
+                'scope:ui',
+                'scope:data',
+                'scope:util',
+              ],
+            },
+            {
+              sourceTag: 'scope:data',
+              onlyDependOnLibsWithTags: ['scope:data', 'scope:util'],
+            },
+            {
+              sourceTag: 'scope:util',
+              onlyDependOnLibsWithTags: ['scope:util'],
             },
           ],
         },
       ],
+    },
+  },
+  {
+    files: ['libs/src/lib/routing/routing.ts'],
+    rules: {
+      '@nx/enforce-module-boundaries': 'off',
     },
   },
   ...nx.configs['flat/base'],

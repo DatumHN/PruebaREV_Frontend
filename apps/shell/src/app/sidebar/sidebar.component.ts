@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
@@ -6,25 +6,24 @@ import {
   Users,
   Settings,
   BarChart3,
-  FileText,
   ChevronRight,
   ChevronDown,
   User,
   HelpCircle,
-  BookOpen,
-  Database,
-  ClipboardList,
-  FolderOpen,
-  FileCheck,
-  Clipboard,
 } from 'lucide-angular';
 import { UserInfoComponent } from '../user-info/user-info.component';
 import { NavigationService } from '../services/navigation.service';
+import { RegistryMenuItem, RegistryNavigationService } from '@revfa/routing';
 import {
-  RegistryMenuItem,
-  RegistryNavigationService,
-} from '../services/registry-navigation.service';
-import { RouterLink, RouterLinkActive, RouterModule } from '@angular/router';
+  RouterLink,
+  RouterLinkActive,
+  RouterModule,
+  Router,
+  NavigationEnd,
+} from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil, filter } from 'rxjs/operators';
+import { AuthStateService } from '@revfa/auth-shared';
 
 @Component({
   selector: 'app-sidebar',
@@ -40,165 +39,120 @@ import { RouterLink, RouterLinkActive, RouterModule } from '@angular/router';
   ],
   template: `
     <div
-      class="h-full bg-white shadow-lg border-r border-gray-200 flex flex-col overflow-hidden pt-4"
+      class="tw-px-4 tw-h-full tw-bg-white  tw-border-r tw-border-gray-200 tw-flex tw-flex-col tw-overflow-hidden tw-pt-4 tw-transition-opacity tw-duration-700 tw-ease-in-out tw-delay-200"
+      [ngClass]="{
+        'tw-opacity-0': navService.sidebarCollapsed$ | async,
+        'tw-opacity-100': (navService.sidebarCollapsed$ | async) === false,
+      }"
     >
       <!-- User Info Section -->
       <div
-        class=" text-white transition-all duration-300"
+        class=" tw-text-white tw-transition-all tw-duration-300"
         [ngClass]="{ 'px-2 py-2': navService.sidebarCollapsed$ | async }"
       >
         <div
           *ngIf="
-            !(navService.sidebarCollapsed$ | async);
+            (navService.sidebarCollapsed$ | async) === false;
             else collapsedUserInfo
           "
         >
           <app-user-info></app-user-info>
         </div>
         <ng-template #collapsedUserInfo>
-          <div class="flex items-center justify-center py-3">
+          <div class="tw-flex tw-items-center tw-justify-center tw-py-3">
             <div
-              class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center"
+              class="tw-w-8 tw-h-8 tw-bg-white/20 tw-rounded-full tw-flex tw-items-center tw-justify-center"
             >
-              <lucide-angular [img]="User" class="w-5 h-5"></lucide-angular>
+              <lucide-angular
+                [img]="User"
+                class="tw-w-5 tw-h-5"
+              ></lucide-angular>
             </div>
           </div>
         </ng-template>
       </div>
 
       <!-- Navigation -->
-      <nav class="flex-1 overflow-y-auto">
+      <nav class="tw-flex-1 tw-overflow-y-auto">
         <div
           [ngClass]="{
             'px-1': navService.sidebarCollapsed$ | async,
-            'px-3': !(navService.sidebarCollapsed$ | async),
+            'px-3': (navService.sidebarCollapsed$ | async) === false,
           }"
-          class="py-4"
+          class="tw-py-4"
         >
-          <!-- Collapsed View -->
-          <div *ngIf="navService.sidebarCollapsed$ | async" class="space-y-2">
-            <button
-              (click)="toggleSubmenu('inicio')"
-              class="nav-link w-full flex items-center justify-center p-3 rounded-lg text-left transition-all duration-200 hover:bg-[#050e5b] hover:text-[#99a3f9] text-gray-700"
-              title="Inicio"
-            >
-              <lucide-angular [img]="Home" class="w-5 h-5"></lucide-angular>
-            </button>
-
-            <button
-              (click)="toggleSubmenu('config')"
-              class="nav-link w-full flex items-center justify-center p-3 rounded-lg text-left transition-all duration-200 hover:bg-[#050e5b] hover:text-[#99a3f9] text-gray-700"
-              title="Configuración"
-            >
-              <lucide-angular [img]="Settings" class="w-5 h-5"></lucide-angular>
-            </button>
-
-            <a
-              routerLink="/reportes"
-              routerLinkActive="bg-[#050e5b] text-[#99a3f9] shadow-sm"
-              class="nav-link w-full flex items-center justify-center p-3 rounded-lg transition-all duration-200 hover:bg-[#050e5b] hover:text-[#99a3f9] text-gray-700"
-              title="Reportes"
-            >
-              <lucide-angular
-                [img]="BarChart3"
-                class="w-5 h-5"
-              ></lucide-angular>
-            </a>
-
-            <a
-              routerLink="/usuarios"
-              routerLinkActive="bg-[#050e5b] text-[#99a3f9] shadow-sm"
-              class="nav-link w-full flex items-center justify-center p-3 rounded-lg transition-all duration-200 hover:bg-[#050e5b] hover:text-[#99a3f9] text-gray-700"
-              title="Usuarios"
-            >
-              <lucide-angular [img]="Users" class="w-5 h-5"></lucide-angular>
-            </a>
-
-            <a
-              routerLink="/ayuda"
-              routerLinkActive="bg-[#050e5b] text-[#99a3f9] shadow-sm"
-              class="nav-link w-full flex items-center justify-center p-3 rounded-lg transition-all duration-200 hover:bg-[#050e5b] hover:text-[#99a3f9] text-gray-700"
-              title="Ayuda"
-            >
-              <lucide-angular
-                [img]="HelpCircle"
-                class="w-5 h-5"
-              ></lucide-angular>
-            </a>
-          </div>
-
           <!-- Expanded View -->
-          <div *ngIf="!(navService.sidebarCollapsed$ | async)">
+          <div *ngIf="(navService.sidebarCollapsed$ | async) === false">
             <!-- Mobile Back Button -->
             <div
-              class="mobile-back md:hidden mb-4 flex items-center justify-end text-gray-600"
+              class="mobile-back md:tw-hidden tw-mb-4 tw-flex tw-items-center tw-justify-end tw-text-gray-600"
             >
-              <span class="mr-2 text-sm">Atrás</span>
+              <span class="tw-mr-2 tw-text-sm">Atrás</span>
               <lucide-angular
                 [img]="ChevronRight"
-                class="w-4 h-4"
+                class="tw-w-4 tw-h-4"
               ></lucide-angular>
             </div>
 
             <!-- Pages Section -->
-            <div class="mb-6">
+            <div class="tw-mb-6">
               <h6
-                class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
+                class="tw-px-3 tw-py-2 tw-text-xs tw-font-semibold tw-text-gray-500 tw-uppercase tw-tracking-wider tw-mb-2"
               >
                 Páginas
               </h6>
 
               <!-- Inicio Menu -->
-              <div class="mb-2">
+              <div class="tw-mb-2">
                 <button
                   (click)="toggleSubmenu('inicio')"
-                  class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 hover:bg-[#050e5b] hover:text-[#99a3f9] group"
+                  class="nav-link tw-w-full tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2.5 tw-rounded-lg tw-text-left tw-transition-all tw-duration-200 hover:tw-bg-[#050e5b] hover:tw-text-[#99a3f9] tw-group "
                   [ngClass]="{
-                    'bg-[#050e5b] text-[#99a3f9] shadow-sm':
+                    'tw-bg-[#050e5b] tw-text-[#99a3f9] tw-shadow-sm':
                       activeSubmenu === 'inicio',
                   }"
                 >
-                  <div class="flex items-center space-x-3">
+                  <div class="tw-flex tw-items-center tw-space-x-3">
                     <lucide-angular
                       [img]="Home"
-                      class="w-5 h-5"
+                      class="tw-w-5 tw-h-5"
                     ></lucide-angular>
-                    <span class="font-medium text-sm">Inicio</span>
+                    <span class="tw-font-medium tw-text-sm">Inicio</span>
                   </div>
                   <lucide-angular
                     [img]="
                       activeSubmenu === 'inicio' ? ChevronDown : ChevronRight
                     "
-                    class="w-4 h-4 transition-transform duration-200"
+                    class="tw-w-4 tw-h-4 tw-transition-transform tw-duration-200"
                   ></lucide-angular>
                 </button>
 
                 <!-- Inicio Subitems -->
                 <div
-                  class="ml-8 mt-2 space-y-1 overflow-hidden transition-all duration-300"
+                  class="tw-ml-8 tw-mt-2 tw-space-y-1 tw-overflow-hidden tw-transition-all tw-duration-300"
                   [ngClass]="{
-                    'max-h-0': activeSubmenu !== 'inicio',
-                    'max-h-96': activeSubmenu === 'inicio',
+                    'tw-max-h-0': activeSubmenu !== 'inicio',
+                    'tw-max-h-96': activeSubmenu === 'inicio',
                   }"
                 >
                   <a
                     routerLink="/inicio/Principal"
-                    routerLinkActive="text-blue-600 bg-blue-50"
-                    class="block px-3 py-2 rounded-md text-sm transition-all duration-200 hover:text-[#050e5b] text-gray-600"
+                    routerLinkActive="tw-text-blue-600"
+                    class="tw-block tw-px-3 tw-py-2 tw-rounded-md tw-text-sm tw-transition-all tw-duration-200 hover:tw-text-[#050e5b] tw-text-gray-600"
                   >
                     Principal
                   </a>
                   <a
                     routerLink="/inicio/approve-table"
-                    routerLinkActive="text-blue-600 bg-blue-50"
-                    class="block px-3 py-2 rounded-md text-sm transition-all duration-200 hover:text-[#050e5b] text-gray-600"
+                    routerLinkActive="tw-text-blue-600"
+                    class="tw-block tw-px-3 tw-py-2 tw-rounded-md tw-text-sm tw-transition-all tw-duration-200 hover:tw-text-[#050e5b] tw-text-gray-600"
                   >
                     Partidas Nacimiento
                   </a>
                   <a
                     routerLink="/inicio/registros"
-                    routerLinkActive="text-blue-600 bg-blue-50"
-                    class="block px-3 py-2 rounded-md text-sm transition-all duration-200 hover:text-[#050e5b] text-gray-600"
+                    routerLinkActive="tw-text-blue-600"
+                    class="tw-block tw-px-3 tw-py-2 tw-rounded-md tw-text-sm tw-transition-all tw-duration-200 hover:tw-text-[#050e5b] tw-text-gray-600"
                   >
                     Registros
                   </a>
@@ -207,77 +161,120 @@ import { RouterLink, RouterLinkActive, RouterModule } from '@angular/router';
             </div>
 
             <!-- Sistema Section -->
-            <div>
-              <h6
-                class="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2"
-              >
-                Sistema
-              </h6>
-
-              <!-- Configuración Menu -->
-              <div class="mb-2">
-                <button
-                  (click)="toggleSubmenu('config')"
-                  class="nav-link w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left transition-all duration-200 hover:bg-[#050e5b] hover:text-[#99a3f9] group text-gray-700"
-                  [ngClass]="{
-                    'bg-[#050e5b] text-[#99a3f9] shadow-sm':
-                      activeSubmenu === 'config',
-                  }"
+            @if (
+              authState.hasAnyRole([
+                'admin',
+                'administrador-rnpn',
+                'registrador-sistema',
+                'administrador-catalogos',
+                'admin-log-npe',
+              ])
+            ) {
+              <div>
+                <h6
+                  class="tw-px-3 tw-py-2 tw-text-xs tw-font-semibold tw-text-gray-500 tw-uppercase tw-tracking-wider tw-mb-2"
                 >
-                  <div class="flex items-center space-x-3">
+                  Sistema
+                </h6>
+
+                <!-- Configuración Menu -->
+                <div class="tw-mb-2">
+                  <button
+                    (click)="toggleSubmenu('config')"
+                    class="nav-link tw-w-full tw-flex tw-items-center tw-justify-between tw-px-3 tw-py-2.5 tw-rounded-lg tw-text-left tw-transition-all tw-duration-200 hover:tw-bg-[#050e5b] hover:tw-text-[#99a3f9] tw-group "
+                    [ngClass]="{
+                      'tw-bg-[#050e5b] tw-text-[#99a3f9] tw-shadow-sm':
+                        activeSubmenu === 'config',
+                    }"
+                  >
+                    <div class="tw-flex tw-items-center tw-space-x-3">
+                      <lucide-angular
+                        [img]="Settings"
+                        class="tw-w-5 tw-h-5"
+                      ></lucide-angular>
+                      <span class="tw-font-medium tw-text-sm"
+                        >Configuración</span
+                      >
+                    </div>
                     <lucide-angular
-                      [img]="Settings"
-                      class="w-5 h-5"
+                      [img]="
+                        activeSubmenu === 'config' ? ChevronDown : ChevronRight
+                      "
+                      class="tw-w-4 tw-h-4 tw-transition-transform tw-duration-200"
                     ></lucide-angular>
-                    <span class="font-medium text-sm">Configuración</span>
-                  </div>
-                  <lucide-angular
-                    [img]="
-                      activeSubmenu === 'config' ? ChevronDown : ChevronRight
-                    "
-                    class="w-4 h-4 transition-transform duration-200"
-                  ></lucide-angular>
-                </button>
+                  </button>
 
-                <!-- Configuración Subitems -->
-                <div
-                  class="ml-8 mt-2 space-y-1 overflow-hidden transition-all duration-300"
-                  [ngClass]="{
-                    'max-h-0': activeSubmenu !== 'config',
-                    'max-h-96': activeSubmenu === 'config',
-                  }"
-                >
-                  <a
-                    routerLink="/config/principal"
-                    routerLinkActive="text-blue-600 bg-blue-50"
-                    class="block px-3 py-2 rounded-md text-sm transition-all duration-200 hover:text-[#050e5b] text-gray-600"
+                  <!-- Configuración Subitems -->
+                  <div
+                    class="tw-ml-8 tw-mt-2 tw-space-y-1 tw-overflow-hidden tw-transition-all tw-duration-300"
+                    [ngClass]="{
+                      'tw-max-h-0': activeSubmenu !== 'config',
+                      'tw-max-h-96': activeSubmenu === 'config',
+                    }"
                   >
-                    Principal
-                  </a>
-                  <a
-                    routerLink="/config/plantillas"
-                    routerLinkActive="text-blue-600 bg-blue-50"
-                    class="block px-3 py-2 rounded-md text-sm transition-all duration-200 hover:text-[#050e5b] text-gray-600"
-                  >
-                    Plantillas
-                  </a>
-                  <a
-                    routerLink="/config/catalogo"
-                    routerLinkActive="text-blue-600 bg-blue-50"
-                    class="block px-3 py-2 rounded-md text-sm transition-all duration-200 hover:text-[#050e5b] text-gray-600"
-                  >
-                    Catálogo
-                  </a>
-                  <a
-                    routerLink="/config/mantenimiento-formularios"
-                    routerLinkActive="text-blue-600 bg-blue-50"
-                    class="block px-3 py-2 rounded-md text-sm transition-all duration-200 hover:text-[#050e5b] text-gray-600"
-                  >
-                    Mantenimiento Formularios
-                  </a>
+                    @if (
+                      authState.hasAnyRole([
+                        'admin',
+                        'administrador-rnpn',
+                        'registrador-sistema',
+                        'admin-log-npe',
+                      ])
+                    ) {
+                      <a
+                        routerLink="/config/principal"
+                        routerLinkActive="tw-text-blue-600"
+                        class="tw-block tw-px-3 tw-py-2 tw-rounded-md tw-text-sm tw-transition-all tw-duration-200 hover:tw-text-[#050e5b] tw-text-gray-600"
+                      >
+                        Principal
+                      </a>
+                    }
+                    @if (
+                      authState.hasAnyRole([
+                        'admin',
+                        'administrador-rnpn',
+                        'registrador-sistema',
+                        'admin-log-npe',
+                      ])
+                    ) {
+                      <a
+                        routerLink="/config/plantillas"
+                        routerLinkActive="tw-text-blue-600"
+                        class="tw-block tw-px-3 tw-py-2 tw-rounded-md tw-text-sm tw-transition-all tw-duration-200 hover:tw-text-[#050e5b] tw-text-gray-600"
+                      >
+                        Plantillas
+                      </a>
+                    }
+                    @if (
+                      authState.hasAnyRole(['admin', 'administrador-catalogos'])
+                    ) {
+                      <a
+                        routerLink="/config/catalogo"
+                        routerLinkActive="tw-text-blue-600"
+                        class="tw-block tw-px-3 tw-py-2 tw-rounded-md tw-text-sm tw-transition-all tw-duration-200 hover:tw-text-[#050e5b] tw-text-gray-600"
+                      >
+                        Catálogo
+                      </a>
+                    }
+                    @if (
+                      authState.hasAnyRole([
+                        'admin',
+                        'administrador-rnpn',
+                        'registrador-sistema',
+                        'admin-log-npe',
+                      ])
+                    ) {
+                      <a
+                        routerLink="/config/mantenimiento-formularios"
+                        routerLinkActive="tw-text-blue-600"
+                        class="tw-block tw-px-3 tw-py-2 tw-rounded-md tw-text-sm tw-transition-all tw-duration-200 hover:tw-text-[#050e5b] tw-text-gray-600"
+                      >
+                        Mantenimiento Formularios
+                      </a>
+                    }
+                  </div>
                 </div>
               </div>
-            </div>
+            }
           </div>
         </div>
       </nav>
@@ -332,48 +329,86 @@ import { RouterLink, RouterLinkActive, RouterModule } from '@angular/router';
       }
 
       .active-registry-item {
-        @apply bg-blue-50 text-blue-700 border-l-4 border-blue-500;
+        @apply tw-bg-blue-50 tw-text-blue-700 tw-border-l-4 tw-border-blue-500;
         transform: translateX(2px);
       }
 
       .active-registry-item lucide-angular {
-        @apply text-blue-600;
+        @apply tw-text-blue-600;
       }
     `,
   ],
 })
-export class SidebarComponent {
+export class SidebarComponent implements OnInit, OnDestroy {
   public navService: NavigationService = inject(NavigationService);
   public registryNavService: RegistryNavigationService = inject(
     RegistryNavigationService,
   );
+  private router = inject(Router);
+  public authState = inject(AuthStateService);
 
   User = User;
   Home = Home;
   Users = Users;
   Settings = Settings;
   BarChart3 = BarChart3;
-  FileText = FileText;
   HelpCircle = HelpCircle;
   ChevronRight = ChevronRight;
   ChevronDown = ChevronDown;
-  Database = Database;
-  BookOpen = BookOpen;
-  ClipboardList = ClipboardList;
-  FolderOpen = FolderOpen;
-  FileCheck = FileCheck;
-  Clipboard = Clipboard;
-  activeSubmenu: string | null = null;
+  activeSubmenu = 'inicio'; // Inicializar con 'inicio' por defecto
   registryMenuItems: RegistryMenuItem[];
+
+  private destroy$ = new Subject<void>();
 
   toggleSubmenu(submenu: string): void {
     if (this.navService.collapseSidebar) {
       this.navService.collapseSidebar = false;
     }
-    this.activeSubmenu = this.activeSubmenu === submenu ? null : submenu;
+    this.activeSubmenu = this.activeSubmenu === submenu ? '' : submenu;
   }
 
   constructor() {
     this.registryMenuItems = this.registryNavService.getRegistryMenuItems();
+    // Establecer el submenu activo basado en la ruta actual al inicializar
+    const currentRoute = this.router.url.split('/')[1];
+    this.setActiveSubmenu(currentRoute);
+  }
+
+  ngOnInit(): void {
+    this.router.events
+      .pipe(
+        takeUntil(this.destroy$),
+        filter((event) => event instanceof NavigationEnd),
+      )
+      .subscribe((event: NavigationEnd) => {
+        const currentRoute = event.urlAfterRedirects.split('/')[1];
+        this.setActiveSubmenu(currentRoute);
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  private setActiveSubmenu(route: string): void {
+    if (route === 'config' || route.startsWith('config')) {
+      this.activeSubmenu = 'config';
+    } else if (
+      route === 'home' ||
+      route.startsWith('home') ||
+      route === 'inicio' ||
+      route.startsWith('inicio') ||
+      route === '' ||
+      route === '/'
+    ) {
+      this.activeSubmenu = 'home';
+    } else {
+      // Para otras rutas que no sean home o config, mantener el estado actual
+      // o establecer 'home' como predeterminado
+      if (!this.activeSubmenu) {
+        this.activeSubmenu = 'home';
+      }
+    }
   }
 }

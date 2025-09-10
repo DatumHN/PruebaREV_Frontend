@@ -7,6 +7,27 @@ import { TDocumentDefinitions } from 'pdfmake/interfaces';
 type PdfMake = typeof import('pdfmake/build/pdfmake');
 type TCreatedPdf = ReturnType<PdfMake['createPdf']>;
 
+export interface JsonGeneral {
+  tiposolicitud: string;
+  idSolicitud: string;
+  alcaldia: string;
+  usuario: string;
+  correlativo: string;
+}
+
+export interface JsonTitular {
+  documento: string;
+  primernombre: string;
+  segundonombre: string;
+  tercernombre: string;
+  primerapellido: string;
+  segundoapellido: string;
+}
+
+export interface SolicitudResponse {
+  data: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -59,7 +80,9 @@ export class PdfService {
   public async generatePdfAsDataUrl(
     docDefinition: TDocumentDefinitions,
   ): Promise<string> {
-    const pdf = await this.createPdfInstance(docDefinition);
+    const pdf = await this.createPdfInstance(
+      JSON.parse(JSON.stringify(docDefinition)),
+    );
     return new Promise<string>((resolve, reject) => {
       try {
         pdf.getDataUrl((dataUrl: string) => resolve(dataUrl));
@@ -73,15 +96,15 @@ export class PdfService {
   public async sendPdfToRest(
     docDefinition: TDocumentDefinitions,
     nombreDocumento: string,
-    jsonGeneral: any,
-    jsonTitular: any,
+    jsonGeneral: JsonGeneral,
+    jsonTitular: JsonTitular,
     endpointUrl = 'http://localhost:8082/documents/uploadSololicitud',
-  ): Promise<any> {
+  ): Promise<SolicitudResponse> {
     const pdfBlob = await this.getPdfBlob(docDefinition);
     const formData = new FormData();
 
     // 1. Adjuntar el archivo PDF
-    formData.append('alcaldia', `0002`);
+    formData.append('alcaldia', `002`);
     formData.append('content', pdfBlob, `${nombreDocumento}.pdf`);
 
     // 2. Adjuntar el primer JSON (general) como un Blob
@@ -95,6 +118,8 @@ export class PdfService {
     // Mantenemos este campo por si el backend lo requiere explícitamente.
     formData.append('fileName', `${nombreDocumento}.pdf`);
 
-    return lastValueFrom(this.http.post(endpointUrl, formData));
+    return lastValueFrom(
+      this.http.post<SolicitudResponse>(endpointUrl, formData),
+    );
   }
 }

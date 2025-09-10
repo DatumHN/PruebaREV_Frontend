@@ -1,12 +1,16 @@
+import { EnvironmentProviders } from '@angular/core';
+
 import { definePreset } from '@primeuix/themes';
 import Aura from '@primeuix/themes/aura';
-import { EnvironmentProviders } from '@angular/core';
 import { providePrimeNG } from 'primeng/config';
-import { provideAnimations } from '@angular/platform-browser/animations';
-import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { provideRouter } from '@angular/router';
 
 export const RNPNTheme = definePreset(Aura, {
+  base: {
+    font: {
+      family:
+        'MuseoSans, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+    },
+  },
   components: {
     stepper: {
       stepNumber: {

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
@@ -26,7 +26,7 @@ import { PdfService } from '../../services/pdf-service/pdf-service';
   templateUrl: './modal-pdf.html',
   styleUrls: ['./modal-pdf.css'],
 })
-export class ModalPdf implements OnInit {
+export class ModalPdf implements OnInit, OnDestroy {
   // --- Inyección de Dependencias ---
   private pdfService = inject(PdfService);
   private dialogConfig = inject(DynamicDialogConfig);
@@ -69,5 +69,11 @@ export class ModalPdf implements OnInit {
    */
   public closeModal(): void {
     this.dialogRef.close();
+  }
+
+  ngOnDestroy(): void {
+    this.pdfUrl = null;
+    this.isLoading = true;
+    this.errorMessage = null;
   }
 }

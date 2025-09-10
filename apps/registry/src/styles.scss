@@ -1,7 +1,24 @@
+// Import MuseoSans fonts first (font declarations)
+@import '../../../libs/shared-fonts/src/lib/shared-fonts/shared-fonts.scss';
+
+// CSS Variables compartidas - importar después de las fuentes
+@import '../../../libs/tailwind-preset/src/css-variables.scss';
+
 @layer tailwind-base, rnpn-theme, tailwind-utilities;
 
 @layer tailwind-base {
   @tailwind base;
+
+  body,
+  html {
+    font-family:
+      var(--font-family),
+      'MuseoSans',
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
+  }
 }
 
 @layer tailwind-utilities {
@@ -19,7 +36,7 @@
 /* Only apply to registry app content, not shell components */
 app-registry-entry,
 .registry-content {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-family);
   background-color: #e4e4e4;
   color: var(--text-color);
 }

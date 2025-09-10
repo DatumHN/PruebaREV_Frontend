@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LucideAngularModule, Loader2 } from 'lucide-angular';
 import { LoadingService } from '../../services/loading.service';
@@ -12,16 +12,18 @@ import { takeUntil } from 'rxjs/operators';
   template: `
     @if (isLoading$ | async) {
       <div
-        class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center"
+        class="tw-fixed tw-inset-0 tw-bg-white tw-bg-opacity-75 tw-z-50 tw-flex tw-items-center tw-justify-center"
       >
-        <div class="flex flex-col items-center space-y-4">
-          <div class="relative">
+        <div class="tw-flex tw-flex-col tw-items-center tw-space-y-4">
+          <div class="tw-relative">
             <lucide-angular
               [img]="Loader2"
-              class="w-8 h-8 text-blue-600 animate-spin"
+              class="tw-w-8 tw-h-8 tw-text-blue-600 tw-animate-spin"
             ></lucide-angular>
           </div>
-          <div class="text-sm text-gray-600">Cargando microfrontend...</div>
+          <div class="tw-text-sm tw-text-gray-600">
+            Cargando microfrontend...
+          </div>
         </div>
       </div>
     }
@@ -47,8 +49,9 @@ export class LoadingComponent implements OnInit, OnDestroy {
   isLoading$: Observable<boolean>;
   readonly Loader2 = Loader2;
   private destroy$ = new Subject<void>();
+  private loadingService = inject(LoadingService);
 
-  constructor(private loadingService: LoadingService) {
+  constructor() {
     this.isLoading$ = this.loadingService.loading$;
   }
 

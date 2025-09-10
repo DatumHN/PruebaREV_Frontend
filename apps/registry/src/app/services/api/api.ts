@@ -71,48 +71,65 @@ export class Api {
   getformUniq(id: string, roles: string): Observable<any> {
     const params = new HttpParams().set('rol', roles);
     return this.http
-      .get<any>(`${this.baseUrl}/tiposdocumentos/secciones?id=${id}&`, {
-        params,
-      })
+      .get<any>(
+        `${this.baseUrl}/optimized/tipodocumentos/${id}/secciones/entity-graph`,
+        {
+          params,
+        },
+      )
       .pipe(catchError(this.handleError));
   }
-  
-  getApproveFormById(id: string, rol: string): Observable<any[]> {
+
+  getApproveFormById(
+    idtipodocumento: string,
+    id: string,
+    rol: string,
+  ): Observable<any[]> {
     return this.http
-      .get<any[]>(`${this.baseUrl}/tiposdocumentos/solicitudCompleta?id=5&rol=${rol}&solicitud=${id}`)
+      .get<
+        any[]
+      >(`${this.baseUrl}/tiposdocumentos/solicitudCompleta?id=${idtipodocumento}&rol=${rol}&solicitud=${id}`)
       .pipe(catchError(this.handleError));
   }
 
-  updateRequestStatus(status: string, solicitudId: string, payload: any): Observable<any> {
-
+  updateRequestStatus(
+    status: string,
+    solicitudId: string,
+    payload: any,
+  ): Observable<any> {
     if (status === 'Aprobado') {
-
       const headers = new HttpHeaders({ 'Content-Type': 'application/json' });
 
       return this.http
-        .put<any>(`${this.baseUrl}/solicitudes/actualizar/${solicitudId}`, payload, { headers })
+        .put<any>(
+          `${this.baseUrl}/solicitudes/actualizar/${solicitudId}`,
+          payload,
+          { headers },
+        )
         .pipe(catchError(this.handleError));
-
-    } else if (status === 'Rechazado'){
-
+    } else if (status === 'Rechazado') {
       return this.http
-        .put<any>(`${this.baseUrl}/solicitudes/estado/${status}/solicitud/${solicitudId}`, payload)
+        .put<any>(
+          `${this.baseUrl}/solicitudes/estado/${status}/solicitud/${solicitudId}`,
+          payload,
+        )
         .pipe(catchError(this.handleError));
-
     } else {
-
       const errorMsg = `Estado no válido: '${status}'. Se esperaba 'Aprobado' o 'Rechazado'.`;
       console.error(errorMsg);
       return throwError(() => new Error(errorMsg));
-
     }
-
   }
-
 
   getControlsById(id: string): Observable<Principales[]> {
     return this.http
       .get<Principales[]>(`${this.baseUrl}/controls/${id}`)
+      .pipe(catchError(this.handleError));
+  }
+
+  getCatalogoHijo(id: number | string): Observable<any> {
+    return this.http
+      .get<any>(`${this.baseUrl}/catalogo/catalogoHijo?id=${id}`)
       .pipe(catchError(this.handleError));
   }
 

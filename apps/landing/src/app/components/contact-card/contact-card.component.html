@@ -1,0 +1,23 @@
+<div class="contact-card-rnpn">
+  <div class="contact-card-icon">
+    <i [class]="data.icon" aria-hidden="true"></i>
+  </div>
+  <div class="contact-card-content">
+    <h3 class="contact-card-title">{{ data.title }}</h3>
+    <p class="contact-card-text">
+      <ng-container *ngIf="isLink; else plainText">
+        <a
+          [href]="linkHref"
+          [target]="linkTarget"
+          class="contact-card-link"
+          [attr.aria-label]="'Contact via ' + data.title"
+        >
+          {{ data.content }}
+        </a>
+      </ng-container>
+      <ng-template #plainText>
+        {{ data.content }}
+      </ng-template>
+    </p>
+  </div>
+</div>

@@ -1,0 +1,103 @@
+<section
+  class="hero-carousel-container"
+  (mouseenter)="onMouseEnter()"
+  (mouseleave)="onMouseLeave()"
+  (keydown)="onKeydown($event)"
+  tabindex="0"
+  role="region"
+  aria-label="Hero carousel with RNPN facility images"
+>
+  <!-- Carousel Slides -->
+  <div class="carousel-wrapper" *ngIf="slides.length > 0">
+    <div
+      *ngFor="let slide of slides; let i = index"
+      class="carousel-slide"
+      [class.active]="i === currentSlideIndex"
+      [attr.aria-hidden]="i !== currentSlideIndex"
+    >
+      <div class="slide-image-container">
+        <img
+          [src]="slide.image"
+          [alt]="slide.alt"
+          class="slide-image"
+          loading="lazy"
+        />
+        <div class="image-overlay"></div>
+      </div>
+    </div>
+
+    <!-- Overlay Content - positioned at bottom -->
+    <div class="carousel-overlay" *ngIf="getCurrentSlide()">
+      <div class="overlay-content">
+        <!-- Mobile REVFA Title - only shown on small screens -->
+        <div class="mobile-revfa-title">
+          <h1 class="mobile-revfa-main">REVFA</h1>
+          <h2 class="mobile-revfa-sub">
+            Registro de estados vitales y familiares
+          </h2>
+        </div>
+
+        <h3 class="overlay-title">
+          {{ getCurrentSlide()?.title }}
+        </h3>
+        <p class="overlay-subtitle">
+          {{ getCurrentSlide()?.subtitle }}
+        </p>
+      </div>
+    </div>
+
+    <!-- Navigation Arrows -->
+    <div
+      class="carousel-navigation"
+      *ngIf="showNavigation && slides.length > 1"
+    >
+      <button
+        class="nav-button nav-prev"
+        (click)="previousSlide()"
+        type="button"
+        aria-label="Previous slide"
+        [attr.aria-disabled]="slides.length <= 1"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" class="nav-icon">
+          <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+        </svg>
+      </button>
+
+      <button
+        class="nav-button nav-next"
+        (click)="nextSlide()"
+        type="button"
+        aria-label="Next slide"
+        [attr.aria-disabled]="slides.length <= 1"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" class="nav-icon">
+          <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Slide Indicators -->
+    <div
+      class="carousel-indicators"
+      *ngIf="showIndicators && slides.length > 1"
+    >
+      <button
+        *ngFor="let slide of slides; let i = index"
+        class="indicator-dot"
+        [class.active]="i === currentSlideIndex"
+        (click)="goToSlide(i)"
+        type="button"
+        [attr.aria-label]="'Go to slide ' + (i + 1)"
+        [attr.aria-pressed]="i === currentSlideIndex"
+      ></button>
+    </div>
+  </div>
+
+  <!-- Fallback content when no slides -->
+  <div class="carousel-fallback" *ngIf="slides.length === 0">
+    <div class="fallback-content">
+      <h3>Bienvenido a REVFA</h3>
+      <p>Sistema de Registro de Estados Vitales y Familiares</p>
+    </div>
+  </div>
+</section>

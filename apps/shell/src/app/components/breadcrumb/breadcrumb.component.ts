@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   Router,
@@ -8,13 +8,13 @@ import {
 } from '@angular/router';
 import { LucideAngularModule, Home, ChevronRight } from 'lucide-angular';
 import { filter } from 'rxjs/operators';
-import { RegistryNavigationService } from '../../services/registry-navigation.service';
+import { RegistryNavigationService } from '@revfa/routing';
 
 interface BreadcrumbItem {
   label: string;
   url: string;
   active: boolean;
-  icon?: any;
+  icon?: typeof Home | null;
 }
 
 @Component({
@@ -22,42 +22,37 @@ interface BreadcrumbItem {
   standalone: true,
   imports: [CommonModule, LucideAngularModule, RouterLink],
   template: `
-    <nav
-      class="flex px-6 py-3 bg-white border-b border-gray-200"
-      aria-label="Breadcrumb"
-    >
-      <ol class="inline-flex items-center space-x-1 md:space-x-3">
+    <nav aria-label="breadcrumb" class="tw-w-full tw-pt-4">
+      <ol
+        class="tw-flex tw-w-full tw-flex-wrap tw-items-center tw-rounded-md tw-px-6 tw-py-8"
+      >
         @for (breadcrumb of breadcrumbs; track $index) {
-          <li class="inline-flex items-center">
-            @if (!$first) {
-              <lucide-angular
-                [img]="ChevronRight"
-                class="w-4 h-4 text-gray-400 mx-1"
-              ></lucide-angular>
-            }
+          <li
+            class="tw-flex tw-cursor-pointer tw-items-center tw-text-sm tw-text-rnpn-primary tw-transition-colors tw-duration-300 hover:tw-text-slate-800"
+          >
             @if (breadcrumb.active) {
-              <span class="flex items-center text-sm font-medium text-gray-500">
+              <span class="tw-flex tw-items-center">
                 @if (breadcrumb.icon) {
                   <lucide-angular
                     [img]="breadcrumb.icon"
-                    class="w-4 h-4 mr-2"
+                    class="tw-w-4 tw-h-4 tw-mr-2"
                   ></lucide-angular>
                 }
                 {{ breadcrumb.label }}
               </span>
             } @else {
-              <a
-                [routerLink]="breadcrumb.url"
-                class="flex items-center text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors duration-200"
-              >
+              <a [routerLink]="breadcrumb.url" class="tw-flex tw-items-center">
                 @if (breadcrumb.icon) {
                   <lucide-angular
                     [img]="breadcrumb.icon"
-                    class="w-4 h-4 mr-2"
+                    class="tw-w-4 tw-h-4 tw-mr-2"
                   ></lucide-angular>
                 }
                 {{ breadcrumb.label }}
               </a>
+              <span class="tw-pointer-events-none tw-mx-2 tw-text-slate-800">
+                /
+              </span>
             }
           </li>
         }
@@ -84,11 +79,9 @@ export class BreadcrumbComponent implements OnInit {
   readonly Home = Home;
   readonly ChevronRight = ChevronRight;
 
-  constructor(
-    private router: Router,
-    private activatedRoute: ActivatedRoute,
-    private registryNavService: RegistryNavigationService,
-  ) {}
+  private router = inject(Router);
+  private activatedRoute = inject(ActivatedRoute);
+  private registryNavService = inject(RegistryNavigationService);
 
   ngOnInit() {
     this.router.events
@@ -103,7 +96,7 @@ export class BreadcrumbComponent implements OnInit {
 
   private createBreadcrumbs(
     route: ActivatedRoute,
-    url: string = '',
+    url = '',
     breadcrumbs: BreadcrumbItem[] = [],
   ): BreadcrumbItem[] {
     const children: ActivatedRoute[] = route.children;
@@ -121,10 +114,10 @@ export class BreadcrumbComponent implements OnInit {
       }
 
       // Create breadcrumb based on route
-      const label = this.getLabelForRoute(url, child);
+      const label = this.getLabelForRoute(url);
       const icon = this.getIconForRoute(url);
 
-      if (label && !breadcrumbs.some(b => b.url === url)) {
+      if (label && !breadcrumbs.some((b) => b.url === url)) {
         breadcrumbs.push({
           label,
           url,
@@ -144,7 +137,7 @@ export class BreadcrumbComponent implements OnInit {
     return breadcrumbs;
   }
 
-  private getLabelForRoute(url: string, route: ActivatedRoute): string {
+  private getLabelForRoute(url: string): string {
     // Handle inicio route
     if (url === '/inicio') {
       return 'Inicio';
@@ -152,8 +145,9 @@ export class BreadcrumbComponent implements OnInit {
 
     // Handle registry routes
     if (url.includes('/inicio/registry')) {
+      // Skip showing "Registro Principal" for base registry routes to avoid redundancy
       if (url === '/inicio/registry' || url === '/inicio/registry/welcome') {
-        return 'Registro Principal';
+        return '';
       }
 
       // Handle form routes
@@ -170,7 +164,7 @@ export class BreadcrumbComponent implements OnInit {
     return '';
   }
 
-  private getIconForRoute(url: string): any {
+  private getIconForRoute(url: string): typeof Home | null {
     if (url === '/inicio') {
       return Home;
     }

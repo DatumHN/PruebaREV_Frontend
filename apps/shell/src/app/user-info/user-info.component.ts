@@ -21,7 +21,9 @@ export class UserInfoComponent implements OnInit {
     this.anio = currentDate.getFullYear();
   }
 
-  openSettings() {}
+  openSettings() {
+    // TODO: Implement settings dialog
+  }
 
   protected readonly Settings = Settings;
 }

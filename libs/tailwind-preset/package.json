@@ -1,0 +1,9 @@
+{
+  "name": "@rnpn/tailwind-preset",
+  "version": "1.0.0",
+  "description": "Preset Tailwind compartido para el proyecto RNPN",
+  "main": "src/index.js",
+  "keywords": ["tailwind", "preset", "rnpn"],
+  "author": "RNPN Team",
+  "license": "MIT"
+}

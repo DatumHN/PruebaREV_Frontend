@@ -1,42 +1,45 @@
 <div
-  class="user-card relative border-b-2 p-6 text-center overflow-hidden max-w-sm mx-auto"
+  class="user-card tw-relative tw-border-b-2 tw-p-6 tw-text-center tw-overflow-hidden tw-max-w-sm tw-mx-auto"
 >
   <!-- Settings Button -->
-  <button class="settings-btn" (click)="openSettings()">
+  <button
+    class="settings-btn tw-text-white hover:tw-text-white"
+    (click)="openSettings()"
+  >
     <lucide-angular
       [img]="Settings"
       [size]="16"
-      class="my-icon"
+      class="my-icon tw-text-rnpn-primary-500 hover:tw-text-white"
     ></lucide-angular>
   </button>
 
   <!-- User Avatar -->
-  <div class="relative inline-block mb-2">
+  <div class="tw-relative tw-inline-block tw-mb-2">
     <img
       src="assets/img-avatar.png"
       alt="Avatar"
-      class="user-avatar w-20 h-20 rounded-full object-cover mx-auto"
+      class="user-avatar tw-w-20 tw-h-20 tw-rounded-full tw-object-cover tw-mx-auto"
     />
     <span class="badge-rrhh">RR.HH</span>
   </div>
 
   <!-- User Info -->
-  <a href="user-profile.html" class="block">
+  <a href="user-profile.html" class="tw-block">
     <h3 class="user-name">Juana Ventura Pérez</h3>
   </a>
   <p class="user-department">Departamento de Recursos Humanos</p>
 
   <!-- Clock Display -->
-  <div class="time-display mb-4">
+  <div class="time-display tw-mb-4">
     <app-clock />
   </div>
 
   <!-- Date Display -->
-  <div class="flex items-center justify-center gap-3">
-    <div class="date-item text-center">{{ dia }}</div>
+  <div class="tw-flex tw-items-center tw-justify-center tw-gap-3">
+    <div class="date-item tw-text-center">{{ dia }}</div>
     <div class="text-[#050e5b]">|</div>
-    <div class="date-item text-center capitalize">{{ mes }}</div>
+    <div class="date-item tw-text-center tw-capitalize">{{ mes }}</div>
     <div class="text-[#050e5b]">|</div>
-    <div class="date-item text-center">{{ anio }}</div>
+    <div class="date-item tw-text-center">{{ anio }}</div>
   </div>
 </div>

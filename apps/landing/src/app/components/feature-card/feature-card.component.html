@@ -1,0 +1,21 @@
+<div class="feature-card-rnpn">
+  <!-- Image Section -->
+  <div class="feature-card-image" [ngClass]="layoutClass">
+    <img [src]="data.image" [alt]="data.title" class="feature-card-img" />
+  </div>
+
+  <!-- Content Section -->
+  <div
+    class="feature-card-content"
+    [ngClass]="[textLayoutClass, backgroundClass]"
+  >
+    <div class="feature-card-text-container">
+      <h4 class="feature-card-title">
+        {{ data.title }}
+      </h4>
+      <p class="feature-card-description">
+        {{ data.description }}
+      </p>
+    </div>
+  </div>
+</div>

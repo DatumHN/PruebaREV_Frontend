@@ -1,0 +1,9 @@
+{
+  "name": "@rnpn/eslint-config-anti-primeflex",
+  "version": "1.0.0",
+  "description": "ESLint rules para prevenir uso de PrimeFlex en migración a Tailwind",
+  "main": "anti-primeflex.js",
+  "keywords": ["eslint", "primeflex", "tailwind", "migration", "rnpn"],
+  "author": "RNPN Team",
+  "license": "MIT"
+}

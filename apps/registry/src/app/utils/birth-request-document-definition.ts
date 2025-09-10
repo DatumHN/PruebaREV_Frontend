@@ -9,21 +9,23 @@ const svgRadioUnchecked =
 const svgRadioChecked =
   '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 26 26" fill="#2E4A8B" class="icon icon-tabler icons-tabler-filled icon-tabler-circle-check"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17 3.34a10 10 0 1 1 -14.995 8.984l-.005 -.324l.005 -.324a10 10 0 0 1 14.995 -8.336zm-1.293 5.953a1 1 0 0 0 -1.32 -.083l-.094 .083l-3.293 3.292l-1.293 -1.292l-.094 -.083a1 1 0 0 0 -1.403 1.403l.083 .094l2 2l.094 .083a1 1 0 0 0 1.226 0l.094 -.083l4 -4l.083 -.094a1 1 0 0 0 -.083 -1.32z" /></svg>';
 
-const dottedSeparator: Content = {
-  canvas: [
-    {
-      type: 'line',
-      x1: 0,
-      y1: 0,
-      x2: 515,
-      y2: 0,
-      dash: { length: 2 },
-      lineWidth: 1,
-      lineColor: '#2E4A8B',
-    },
-  ],
-  margin: [0, 0, 0, 15],
-};
+function createDottedSeparator(): Content {
+  return {
+    canvas: [
+      {
+        type: 'line',
+        x1: 0,
+        y1: 0,
+        x2: 515,
+        y2: 0,
+        dash: { length: 2 },
+        lineWidth: 1,
+        lineColor: '#2E4A8B',
+      },
+    ],
+    margin: [0, 0, 0, 15],
+  };
+}
 
 function createCheckboxRow(label: string, checked: boolean): Content {
   return {
@@ -520,18 +522,18 @@ export function getRequestDocumentDefinition(
 ): TDocumentDefinitions {
   const content: Content[] = [
     ...getHeaderSection(formData.header, logo),
-    dottedSeparator,
+    createDottedSeparator(),
     ...getSolicitanteSection(formData.solicitante),
-    dottedSeparator,
+    createDottedSeparator(),
 
     ...(!formData.solicitante.esTitular
-      ? [...getTitularSection(formData.titular), dottedSeparator]
+      ? [...getTitularSection(formData.titular), createDottedSeparator()]
       : []),
 
     ...getDeclaracionSection(formData.declaracion),
-    dottedSeparator,
+    createDottedSeparator(),
     ...getDocumentacionSection(formData.documentacion.presentada),
-    dottedSeparator,
+    createDottedSeparator(),
     ...getFirmasSection(formData.firmas),
     {
       table: {
@@ -557,6 +559,9 @@ export function getRequestDocumentDefinition(
   ];
 
   return {
+    info: {
+      title: 'Formulario Único de Solicitud',
+    },
     pageSize: 'LETTER',
     pageMargins: [40, 60, 40, 40],
     content,

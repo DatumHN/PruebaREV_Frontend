@@ -1,75 +1,183 @@
-<div class="p-4 md:p-8 bg-gray-100 min-h-screen">
-  <p-card>
-    <ng-template pTemplate="title">
-      <h2 class="text-2xl font-bold text-gray-800">Solicitudes de Registro</h2>
-    </ng-template>
-    <ng-template pTemplate="subtitle">
-      <p class="text-gray-600">
+<div class="tw-p-4 md:tw-p-8 tw-bg-gray-100 tw-min-h-screen">
+  <div class="tw-card-rnpn">
+    <div class="tw-card-rnpn-header">
+      <h2 class="tw-card-rnpn-title">Solicitudes de Registro</h2>
+      <p class="tw-card-rnpn-subtitle">
         Lista de solicitudes pendientes de revisión y aprobación.
       </p>
-    </ng-template>
-    <ng-template pTemplate="content">
+    </div>
+    <div class="tw-card-rnpn-content">
       @if (isLoading) {
-        <div class="flex justify-center items-center p-8">
-          <p-progressSpinner></p-progressSpinner>
+      <div class="tw-spinner-container-full">
+        <div class="tw-spinner-with-text">
+          <div class="tw-spinner-rnpn"></div>
+          <span class="tw-spinner-text">Cargando solicitudes...</span>
         </div>
+      </div>
       } @else {
-        <p-table
-          [value]="solicitudes"
-          styleClass="p-datatable-striped"
-          [paginator]="true"
-          [rows]="10"
-          [rowsPerPageOptions]="[10, 25, 50]"
-          [globalFilterFields]="['correlativo', 'solicitante', 'estado']"
-          responsiveLayout="scroll"
-        >
-          <ng-template pTemplate="header">
-            <tr>
-              <th pSortableColumn="correlativo">
-                Correlativo <p-sortIcon field="correlativo"></p-sortIcon>
-              </th>
-              <th pSortableColumn="estado">
-                Estado <p-sortIcon field="estado"></p-sortIcon>
-              </th>
-              <th pSortableColumn="fechaSolicitud">
-                Fecha Solicitud <p-sortIcon field="fechaSolicitud"></p-sortIcon>
-              </th>
-              <th pSortableColumn="solicitante">
-                Solicitante <p-sortIcon field="solicitante"></p-sortIcon>
-              </th>
-              <th>Acción</th>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="body" let-solicitud>
-            <tr>
-              <td>{{ solicitud.correlativo }}</td>
-              <td>
-                <p-tag
-                  [value]="solicitud.estado"
-                  [severity]="getSeverity(solicitud.estado)"
-                ></p-tag>
-              </td>
-              <td>{{ solicitud.fechaSolicitud | date: 'dd/MM/yyyy' }}</td>
-              <td>{{ solicitud.solicitante }}</td>
-              <td>
-                <p-button
-                  styleClass="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#050e5b] hover:bg-[#1a237e] text-white transition-colors duration-200"
-                  (click)="navigateToApprove(solicitud.id)"
+      <div class="tw-table-responsive">
+        <div class="tw-table-rnpn">
+          <table>
+            <thead>
+              <tr>
+                <th
+                  class="tw-table-header-sortable"
+                  (click)="sort('correlativo')"
                 >
+                  Correlativo
+                  <lucide-icon
+                    name="chevron-up"
+                    class="tw-sort-icon"
+                    [ngClass]="{
+                      'active': sortField === 'correlativo',
+                      'desc': sortField === 'correlativo' && sortDirection === 'desc'
+                    }"
+                    size="14"
+                  ></lucide-icon>
+                </th>
+                <th class="tw-table-header-sortable" (click)="sort('estado')">
+                  Estado
+                  <lucide-icon
+                    name="chevron-up"
+                    class="tw-sort-icon"
+                    [ngClass]="{
+                      'active': sortField === 'estado',
+                      'desc': sortField === 'estado' && sortDirection === 'desc'
+                    }"
+                    size="14"
+                  ></lucide-icon>
+                </th>
+                <th
+                  class="tw-table-header-sortable"
+                  (click)="sort('fechaSolicitud')"
+                >
+                  Fecha Solicitud
+                  <lucide-icon
+                    name="chevron-up"
+                    class="tw-sort-icon"
+                    [ngClass]="{
+                      'active': sortField === 'fechaSolicitud',
+                      'desc': sortField === 'fechaSolicitud' && sortDirection === 'desc'
+                    }"
+                    size="14"
+                  ></lucide-icon>
+                </th>
+                <th
+                  class="tw-table-header-sortable"
+                  (click)="sort('solicitante')"
+                >
+                  Solicitante
+                  <lucide-icon
+                    name="chevron-up"
+                    class="tw-sort-icon"
+                    [ngClass]="{
+                      'active': sortField === 'solicitante',
+                      'desc': sortField === 'solicitante' && sortDirection === 'desc'
+                    }"
+                    size="14"
+                  ></lucide-icon>
+                </th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (paginatedSolicitudes.length === 0) {
+              <tr>
+                <td colspan="5" class="tw-table-empty">
+                  <div class="tw-table-empty-icon">
+                    <lucide-icon name="inbox" size="48"></lucide-icon>
+                  </div>
+                  <div class="tw-table-empty-message">
+                    No hay solicitudes pendientes
+                  </div>
+                  <div class="tw-table-empty-description">
+                    No hay solicitudes pendientes o rechazadas por el momento.
+                  </div>
+                </td>
+              </tr>
+              } @else { @for (solicitud of paginatedSolicitudes; track
+              solicitud.id) {
+              <tr>
+                <td>{{ solicitud.correlativo }}</td>
+                <td>
+                  <span
+                    class="tw-badge-rnpn"
+                    [ngClass]="getBadgeClass(solicitud.estado)"
+                  >
+                    {{ solicitud.estado }}
+                  </span>
+                </td>
+                <td>{{ solicitud.fechaSolicitud | date: 'dd/MM/yyyy' }}</td>
+                <td>{{ solicitud.solicitante }}</td>
+                <td>
+                  <button
+                    type="button"
+                    class="tw-btn-rnpn tw-text-sm"
+                    (click)="navigateToApprove(solicitud.id, solicitud.tipoDocumento.id)"
+                  >
                     Seleccionar
-                </p-button>
-              </td>
-            </tr>
-          </ng-template>
-          <ng-template pTemplate="emptymessage">
-            <tr>
-              <td colspan="5" class="text-center p-4">
-                No hay solicitudes pendientes o rechazadas por el momento.
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
+                  </button>
+                </td>
+              </tr>
+              } }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Custom Pagination -->
+        @if (solicitudes.length > 0) {
+        <div class="tw-pagination">
+          <div class="tw-pagination-info">
+            Mostrando {{ getStartIndex() + 1 }} a {{ getEndIndex() }} de {{
+            solicitudes.length }} entradas
+          </div>
+
+          <div class="tw-pagination-controls">
+            <div class="tw-pagination-rows-select">
+              Filas por página:
+              <select
+                class="tw-pagination-select"
+                [(ngModel)]="pageSize"
+                (change)="onPageSizeChange()"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </div>
+
+            <div class="tw-pagination-pages">
+              <button
+                class="tw-pagination-btn"
+                (click)="goToPage(currentPage - 1)"
+                [disabled]="currentPage === 1"
+              >
+                Anterior
+              </button>
+
+              @for (page of getVisiblePages(); track page) {
+              <button
+                class="tw-pagination-btn"
+                [ngClass]="{ 'active': page === currentPage }"
+                (click)="goToPage(page)"
+              >
+                {{ page }}
+              </button>
+              }
+
+              <button
+                class="tw-pagination-btn"
+                (click)="goToPage(currentPage + 1)"
+                [disabled]="currentPage === getTotalPages()"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
+        }
+      </div>
       }
-    </ng-template>
-  </p-card>
+    </div>
+  </div>
 </div>

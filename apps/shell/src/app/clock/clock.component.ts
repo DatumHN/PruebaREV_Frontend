@@ -1,43 +1,47 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  ChangeDetectionStrategy,
+  signal,
+  computed,
+} from '@angular/core';
 import { interval, Subscription } from 'rxjs';
-import { NgFor } from '@angular/common';
 
 @Component({
   selector: 'app-clock',
-  standalone: true,
-  templateUrl: './clock.component.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div
+      class="tw-flex tw-items-center tw-justify-center tw-text-[2rem] tw-font-museo-sans tw-font-light text-[#050e5b]"
+    >
+      {{ formattedTime() }}
+    </div>
+  `,
   styleUrls: ['./clock.component.scss'],
-  imports: [NgFor],
 })
-export class ClockComponent implements OnInit, OnDestroy {
-  time: Date = new Date();
-  hours: number[] = [];
-  minutes: number[] = [];
-  seconds: number[] = [];
-  period = '';
-  private subscription: Subscription | undefined;
+export class ClockComponent implements OnDestroy {
+  private currentTime = signal(new Date());
+  private subscription: Subscription;
 
-  ngOnInit(): void {
+  formattedTime = computed(() => {
+    const time = this.currentTime();
+    const hours = time.getHours();
+    const minutes = time.getMinutes();
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+
+    return `${displayHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')} ${period}`;
+  });
+
+  constructor() {
+    this.currentTime.set(new Date());
+
     this.subscription = interval(1000).subscribe(() => {
-      this.time = new Date();
-      const hora = this.time.getHours();
-      this.period = hora >= 12 ? 'PM' : 'AM';
-      this.hours = this.getDigits(hora % 12 || 12);
-      this.minutes = this.getDigits(this.time.getMinutes());
-      this.seconds = this.getDigits(this.time.getSeconds());
+      this.currentTime.set(new Date());
     });
   }
 
   ngOnDestroy(): void {
-    // @ts-ignore
-    this.subscription.unsubscribe();
-  }
-
-  private getDigits(num: number): number[] {
-    return num
-      .toString()
-      .padStart(2, '0')
-      .split('')
-      .map((digit) => parseInt(digit));
+    this.subscription?.unsubscribe();
   }
 }

@@ -29,16 +29,6 @@
             "glob": "**/*",
             "input": "apps/registry/src/assets",
             "output": "assets"
-          },
-          {
-            "glob": "**/*",
-            "input": "apps/auth/src/assets",
-            "output": "assets"
-          },
-          {
-            "glob": "**/*",
-            "input": "apps/admin/src/assets",
-            "output": "assets"
           }
         ],
         "styles": ["apps/shell/src/styles.scss"],
@@ -78,7 +68,7 @@
         "buildTarget": "shell:build",
         "port": 4200,
         "hmr": true,
-        "devRemotes": ["registry", "admin", "auth", "landing"]
+        "devRemotes": ["registry", "landing"]
       },
       "configurations": {
         "development": {
@@ -94,8 +84,8 @@
       "executor": "@nx/eslint:lint",
       "options": {
         "lintFilePatterns": [
-          "apps/admin/src/**/*.ts",
-          "apps/admin/src/**/*.html"
+          "apps/shell/src/**/*.ts",
+          "apps/shell/src/**/*.html"
         ]
       }
     },

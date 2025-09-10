@@ -1,12 +1,14 @@
 import { Route } from '@angular/router';
-import { Api } from '../services/api/api';
-import { PdfService } from '../services/pdf-service/pdf-service';
-import { Logo } from '../services/logo/logo';
-import { RemoteEntry } from './entry';
-import { RegistryWelcome } from '../components/registry-welcome/registry-welcome';
-import { RegistryForm } from '../components/registry-form/registry-form';
+
 import { DialogService } from 'primeng/dynamicdialog';
+
 import { RegistryApprove } from '../components/registry-approve/registry-approve';
+import { RegistryForm } from '../components/registry-form/registry-form';
+import { RegistryWelcome } from '../components/registry-welcome/registry-welcome';
+import { Api } from '../services/api/api';
+import { Logo } from '../services/logo/logo';
+import { PdfService } from '../services/pdf-service/pdf-service';
+import { RemoteEntry } from './entry';
 
 export const remoteRoutes: Route[] = [
   {
@@ -35,7 +37,7 @@ export const remoteRoutes: Route[] = [
         component: RegistryForm,
       },
       {
-        path: 'approve/:id',
+        path: 'approve/:id/:idtipodoc',
         component: RegistryApprove,
       },
     ],

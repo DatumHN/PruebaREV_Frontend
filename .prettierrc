@@ -5,6 +5,27 @@
   "semi": true,
   "arrowParens": "always",
   "endOfLine": "lf",
+  "plugins": [
+    "@babel/plugin-transform-typescript",
+    "@babel/plugin-proposal-decorators",
+    "@babel/plugin-proposal-class-properties",
+    "@trivago/prettier-plugin-sort-imports"
+  ],
+  "overrides": [
+    {
+      "files": "*.ts",
+      "options": {
+        "parser": "babel-ts"
+      }
+    },
+    {
+      "files": "*.json",
+      "options": {
+        "trailingComma": "none",
+        "parser": "json"
+      }
+    }
+  ],
   "importOrder": ["^@angular/(.*)$", "<THIRD_PARTY_MODULES>", "^[./]"],
   "importOrderSeparation": true,
   "importOrderSortSpecifiers": true

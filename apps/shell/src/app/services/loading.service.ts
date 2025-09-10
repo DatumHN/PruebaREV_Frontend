@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import {
   Router,
@@ -14,8 +14,9 @@ import {
 export class LoadingService {
   private loadingSubject = new BehaviorSubject<boolean>(false);
   private loadingCountSubject = new BehaviorSubject<number>(0);
+  private router = inject(Router);
 
-  constructor(private router: Router) {
+  constructor() {
     this.initRouterLoading();
   }
 
