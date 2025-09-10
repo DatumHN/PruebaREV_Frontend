@@ -1,0 +1,75 @@
+<div class="p-4 md:p-8 bg-gray-100 min-h-screen">
+  <p-card>
+    <ng-template pTemplate="title">
+      <h2 class="text-2xl font-bold text-gray-800">Solicitudes de Registro</h2>
+    </ng-template>
+    <ng-template pTemplate="subtitle">
+      <p class="text-gray-600">
+        Lista de solicitudes pendientes de revisión y aprobación.
+      </p>
+    </ng-template>
+    <ng-template pTemplate="content">
+      @if (isLoading) {
+        <div class="flex justify-center items-center p-8">
+          <p-progressSpinner></p-progressSpinner>
+        </div>
+      } @else {
+        <p-table
+          [value]="solicitudes"
+          styleClass="p-datatable-striped"
+          [paginator]="true"
+          [rows]="10"
+          [rowsPerPageOptions]="[10, 25, 50]"
+          [globalFilterFields]="['correlativo', 'solicitante', 'estado']"
+          responsiveLayout="scroll"
+        >
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="correlativo">
+                Correlativo <p-sortIcon field="correlativo"></p-sortIcon>
+              </th>
+              <th pSortableColumn="estado">
+                Estado <p-sortIcon field="estado"></p-sortIcon>
+              </th>
+              <th pSortableColumn="fechaSolicitud">
+                Fecha Solicitud <p-sortIcon field="fechaSolicitud"></p-sortIcon>
+              </th>
+              <th pSortableColumn="solicitante">
+                Solicitante <p-sortIcon field="solicitante"></p-sortIcon>
+              </th>
+              <th>Acción</th>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="body" let-solicitud>
+            <tr>
+              <td>{{ solicitud.correlativo }}</td>
+              <td>
+                <p-tag
+                  [value]="solicitud.estado"
+                  [severity]="getSeverity(solicitud.estado)"
+                ></p-tag>
+              </td>
+              <td>{{ solicitud.fechaSolicitud | date: 'dd/MM/yyyy' }}</td>
+              <td>{{ solicitud.solicitante }}</td>
+              <td>
+                <p-button
+                  styleClass="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#050e5b] hover:bg-[#1a237e] text-white transition-colors duration-200"
+                  (click)="navigateToApprove(solicitud.id)"
+                >
+                    Seleccionar
+                </p-button>
+              </td>
+            </tr>
+          </ng-template>
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="5" class="text-center p-4">
+                No hay solicitudes pendientes o rechazadas por el momento.
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      }
+    </ng-template>
+  </p-card>
+</div>

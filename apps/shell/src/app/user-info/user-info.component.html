@@ -1,0 +1,42 @@
+<div
+  class="user-card relative border-b-2 p-6 text-center overflow-hidden max-w-sm mx-auto"
+>
+  <!-- Settings Button -->
+  <button class="settings-btn" (click)="openSettings()">
+    <lucide-angular
+      [img]="Settings"
+      [size]="16"
+      class="my-icon"
+    ></lucide-angular>
+  </button>
+
+  <!-- User Avatar -->
+  <div class="relative inline-block mb-2">
+    <img
+      src="assets/img-avatar.png"
+      alt="Avatar"
+      class="user-avatar w-20 h-20 rounded-full object-cover mx-auto"
+    />
+    <span class="badge-rrhh">RR.HH</span>
+  </div>
+
+  <!-- User Info -->
+  <a href="user-profile.html" class="block">
+    <h3 class="user-name">Juana Ventura Pérez</h3>
+  </a>
+  <p class="user-department">Departamento de Recursos Humanos</p>
+
+  <!-- Clock Display -->
+  <div class="time-display mb-4">
+    <app-clock />
+  </div>
+
+  <!-- Date Display -->
+  <div class="flex items-center justify-center gap-3">
+    <div class="date-item text-center">{{ dia }}</div>
+    <div class="text-[#050e5b]">|</div>
+    <div class="date-item text-center capitalize">{{ mes }}</div>
+    <div class="text-[#050e5b]">|</div>
+    <div class="date-item text-center">{{ anio }}</div>
+  </div>
+</div>

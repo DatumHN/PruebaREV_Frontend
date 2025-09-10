@@ -1,0 +1,89 @@
+{
+  "name": "landing",
+  "sourceRoot": "apps/landing/src",
+  "projectType": "application",
+  "tags": ["scope:app"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:webpack-browser",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/landing",
+        "index": "apps/landing/src/index.html",
+        "main": "apps/landing/src/main.ts",
+        "polyfills": ["zone.js"],
+        "tsConfig": "apps/landing/tsconfig.app.json",
+        "assets": [
+          "apps/landing/src/favicon.ico",
+          {
+            "glob": "**/*",
+            "input": "apps/landing/src/assets",
+            "output": "assets"
+          }
+        ],
+        "styles": ["apps/landing/src/styles.scss"],
+        "scripts": []
+      },
+      "configurations": {
+        "development": {
+          "optimization": false,
+          "sourceMap": true,
+          "buildOptimizer": false
+        },
+        "production": {
+          "optimization": true,
+          "sourceMap": false,
+          "buildOptimizer": true,
+          "extractLicenses": true,
+          "namedChunks": false,
+          "vendorChunk": false,
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "2MB",
+              "maximumError": "5MB"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "200KB",
+              "maximumError": "400KB"
+            }
+          ]
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/landing/src/**/*.ts",
+          "apps/landing/src/**/*.html"
+        ]
+      }
+    },
+    "serve": {
+      "executor": "@nx/angular:dev-server",
+      "options": {
+        "buildTarget": "landing:build",
+        "port": 4203,
+        "hmr": true
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "landing:build:development"
+        },
+        "production": {
+          "buildTarget": "landing:build:production"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/landing/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

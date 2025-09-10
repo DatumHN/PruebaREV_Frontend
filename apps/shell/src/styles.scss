@@ -1,0 +1,17 @@
+@layer tailwind-base, rnpn-theme, tailwind-utilities;
+
+@layer tailwind-base {
+  @tailwind base;
+}
+
+@layer tailwind-utilities {
+  @tailwind components;
+  @tailwind utilities;
+}
+
+/* You can add global styles to this file, and also import other style files */
+
+//@import 'primeicons/primeicons.css';
+//@import 'primeflex/primeflex.css';
+// If you use a PrimeNG theme, import it here as well, e.g.:
+// @import 'primeng/resources/themes/saga-blue/theme.css';

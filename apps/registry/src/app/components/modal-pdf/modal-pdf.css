@@ -1,0 +1,58 @@
+/*
+ * Contenedor principal que ocupa una altura considerable.
+ * SOLUCIÓN: Se cambia a 'flex-direction: column' para posicionar
+ * el botón debajo del visor de PDF.
+ */
+.pdf-modal-container {
+  width: 100%;
+  /* Aumentamos un poco la altura para dar espacio al botón */
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background-color: #f8f9fa;
+}
+
+/*
+ * El iframe debe ocupar todo el espacio vertical disponible.
+ * SOLUCIÓN: 'flex-grow: 1' hace que el iframe se expanda para llenar
+ * el espacio que no ocupa el pie de página del botón.
+ */
+.pdf-iframe {
+  width: 100%;
+  flex-grow: 1;
+  border: none;
+}
+
+/*
+ * Contenedor para los mensajes de carga y error.
+ */
+.feedback-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  text-align: center;
+  /* Asegura que ocupe todo el espacio si el iframe no está visible */
+  flex-grow: 1;
+}
+
+/*
+ * SOLUCIÓN: Se elimina la clase '.close-button' anterior.
+ */
+
+/**
+ * SOLUCIÓN: Estilos para el nuevo pie de página del modal.
+ * Contiene el botón de cierre.
+ */
+.modal-footer {
+  width: 100%;
+  padding: 1rem;
+  text-align: center;
+  flex-shrink: 0; /* Evita que el pie de página se encoja */
+  background-color: #ffffff;
+  border-top: 1px solid #dee2e6;
+}

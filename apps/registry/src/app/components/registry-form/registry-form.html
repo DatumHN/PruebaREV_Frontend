@@ -1,0 +1,445 @@
+<!-- ======================================================== -->
+<!-- ===          DIÁLOGO PARA BÚSQUEDA DE PERSONA      === -->
+<!-- ======================================================== -->
+<p-dialog
+  [(visible)]="isSearchModalVisible"
+  [header]="searchModalTitle"
+  [modal]="true"
+  [style]="{width: '50vw', 'max-width': '650px'}"
+  (onHide)="closeSearchModal()"
+  appendTo="body"
+  [baseZIndex]="10000"
+  [draggable]="false"
+  [resizable]="false"
+>
+  <div class="p-4">
+    @if (isSearching) {
+    <!-- Estado de Carga -->
+    <div class="flex flex-col items-center justify-center p-8">
+      <i
+        class="pi pi-spin pi-spinner text-blue-500"
+        style="font-size: 3rem"
+      ></i>
+      <p class="mt-3 text-lg text-gray-600">Buscando...</p>
+    </div>
+    } @else if (searchError) {
+    <!-- Estado de Error -->
+    <div class="flex flex-col items-center justify-center p-8 text-center">
+      <i class="pi pi-times-circle text-red-500" style="font-size: 3rem"></i>
+      <p class="mt-3 text-lg text-red-700">{{ searchError }}</p>
+    </div>
+    } @else if (searchResults.length > 0) {
+    <!-- Resultados Encontrados -->
+    <div>
+      <p class="mb-4 text-gray-700">
+        Se encontró el siguiente registro. ¿Desea seleccionarlo para
+        autocompletar el campo?
+      </p>
+
+      @for (result of searchResults; track result.dui) {
+      <p-card
+        styleClass="mb-4 shadow-md hover:shadow-lg transition-shadow duration-300"
+      >
+        <ng-template pTemplate="header">
+          <div class="flex items-center p-4">
+            <img
+              [src]="result.fotoUrl"
+              alt="Foto de {{ result.nombre }}"
+              class="w-20 h-20 rounded-full mr-4 object-cover border-2 border-gray-200"
+              onerror="this.onerror=null; this.src='https://placehold.co/100x100/EFEFEF/AAAAAA?text=Foto';"
+            />
+            <div>
+              <h3 class="text-xl font-bold text-gray-800">
+                {{ result.nombre }}
+              </h3>
+              <p class="text-sm text-gray-600">DUI: {{ result.dui }}</p>
+            </div>
+          </div>
+        </ng-template>
+        <p class="text-gray-700 px-4 pb-2">
+          <i class="pi pi-map-marker mr-2"></i>{{ result.direccion }}
+        </p>
+        <ng-template pTemplate="footer">
+          <div class="flex justify-end p-2">
+            <p-button
+              label="Seleccionar esta persona"
+              icon="pi pi-check"
+              (onClick)="selectSearchResult(result)"
+            ></p-button>
+          </div>
+        </ng-template>
+      </p-card>
+      }
+    </div>
+    }
+  </div>
+</p-dialog>
+
+<!-- ======================================================== -->
+<!-- ===       DIÁLOGO PARA GESTIÓN DE ANEXOS (SOLUCIÓN)  === -->
+<!-- ======================================================== -->
+<p-dialog
+  header="Agregar Nuevo Anexo"
+  [(visible)]="isAnexoModalVisible"
+  [modal]="true"
+  [style]="{width: '600px', 'max-width': '95vw'}"
+  [baseZIndex]="5000"
+  [draggable]="false"
+  [resizable]="false"
+  [closable]="true"
+  [dismissableMask]="false"
+  [blockScroll]="true"
+  [closeOnEscape]="true"
+  (onHide)="onAnexoModalHide()"
+  [focusOnShow]="false"
+>
+  <div class="anexo-modal-content">
+    <form [formGroup]="anexoForm" class="flex flex-col gap-4 pt-4">
+      <!-- Campo: Nombre Predefinido -->
+      <div class="flex flex-col gap-2">
+        <label for="nombrePredefinido" class="font-semibold"
+          >Seleccionar nombre predefinido</label
+        >
+        <p-autoComplete
+          id="nombrePredefinido"
+          formControlName="nombrePredefinido"
+          [suggestions]="sugerenciasNombres"
+          (completeMethod)="filtrarNombresAnexos($event)"
+          [dropdown]="true"
+          forceSelection="false"
+          placeholder="Ej: Constancia Médica de Nacimiento"
+          styleClass="w-full"
+          [appendTo]="'body'"
+        >
+        </p-autoComplete>
+      </div>
+
+      <!-- Campo: Nombre Personalizado -->
+      <div class="flex flex-col gap-2">
+        <label for="nombrePersonalizado" class="font-semibold"
+          >O escribir un nombre personalizado</label
+        >
+        <input
+          pInputText
+          id="nombrePersonalizado"
+          formControlName="nombrePersonalizado"
+          placeholder="Ej: DUI de la madre"
+          class="w-full"
+        />
+      </div>
+
+      <!-- Mensaje de error para los nombres -->
+      @if (anexoForm.hasError('requireOne') && (anexoForm.touched || anexoForm.dirty)) {
+      <p-message
+        severity="error"
+        text="Debe seleccionar un nombre predefinido o escribir uno personalizado."
+      ></p-message>
+      }
+
+      <!-- Campo: Carga de Archivo -->
+      <div class="flex flex-col gap-2">
+        <label for="anexoFile" class="font-semibold"
+          >Seleccionar archivo PDF</label
+        >
+        <p-fileUpload
+          #fileUploader
+          mode="advanced"
+          name="anexoFile[]"
+          accept="application/pdf"
+          [maxFileSize]="10000000"
+          (onSelect)="onFileSelect($event)"
+          (onClear)="clearFile()"
+          [showUploadButton]="false"
+          [showCancelButton]="false"
+          id="anexoFile"
+          chooseLabel="Buscar archivo"
+          invalidFileSizeMessageSummary="{0}: Tamaño de archivo no válido,"
+          invalidFileSizeMessageDetail="el tamaño máximo es {0}."
+          invalidFileTypeMessageSummary="{0}: Tipo de archivo no válido,"
+          invalidFileTypeMessageDetail="solo se permiten archivos de tipo '{0}'."
+          styleClass="w-full"
+        >
+          <ng-template pTemplate="empty">
+            <div class="flex items-center justify-center flex-col p-6 border-2 border-dashed border-gray-300 rounded-lg">
+              <i
+                class="pi pi-cloud-upload text-4xl text-gray-400 mb-3"
+              ></i>
+              <p class="text-sm text-gray-500 text-center">
+                Arrastre y suelte un archivo PDF aquí o haga clic en "Buscar archivo"
+              </p>
+            </div>
+          </ng-template>
+        </p-fileUpload>
+        @if (anexoForm.get('archivo')?.hasError('required') &&
+        anexoForm.get('archivo')?.touched) {
+        <p-message
+          severity="error"
+          text="Debe seleccionar un archivo PDF."
+        ></p-message>
+        }
+      </div>
+    </form>
+  </div>
+
+  <ng-template pTemplate="footer">
+    <div class="flex justify-end gap-2 pt-4">
+      <p-button
+        label="Cancelar"
+        icon="pi pi-times"
+        (onClick)="closeAnexoModal()"
+        styleClass="p-button-text"
+      ></p-button>
+      <p-button
+        label="Guardar Anexo"
+        icon="pi pi-check"
+        (onClick)="guardarAnexo()"
+        [disabled]="anexoForm.invalid"
+        styleClass="p-button-primary"
+      ></p-button>
+    </div>
+  </ng-template>
+</p-dialog>
+
+<!-- ======================================================== -->
+<!-- ===          CONTENIDO PRINCIPAL DEL FORMULARIO      === -->
+<!-- ======================================================== -->
+<div class="bg-gray-100 p-4 md:p-8 min-h-screen">
+  <p-card class="w-full max-w-7xl shadow-lg mx-auto">
+    <ng-template pTemplate="title">
+      <h1 class="text-3xl font-bold text-center text-gray-800 mb-4">
+        Solicitud de Registro de Nacimiento
+      </h1>
+    </ng-template>
+
+    <ng-template pTemplate="content">
+      <div
+        class="w-full max-w-5xl mx-auto p-6 mb-8 border border-gray-200 rounded-lg shadow-sm"
+      >
+        <form [formGroup]="topForm" class="p-fluid">
+          <formly-form
+            [form]="topForm"
+            [fields]="topFields"
+            [model]="topModel"
+          ></formly-form>
+        </form>
+      </div>
+
+      @if (isLoading) {
+        <div class="flex flex-col items-center justify-center p-16">
+          <p-progressSpinner styleClass="w-12 h-12" strokeWidth="6"></p-progressSpinner>
+          <p class="mt-4 text-lg text-gray-600">Cargando datos de la solicitud...</p>
+        </div>
+      }
+
+      @if (!isLoading && stepsConfig.length > 0) {
+      <div class="w-full flex flex-col items-center">
+        <p-stepper
+          [(value)]="activeStepIndex"
+          [linear]="false"
+          class="w-full max-w-6xl flex flex-col"
+        >
+          <p-step-list class="w-full flex justify-center">
+            @for (step of stepsConfig; track step.id; let i = $index) {
+            <p-step [value]="i">
+              <span class="p-stepper-title font-medium">{{ step.header }}</span>
+            </p-step>
+            }
+          </p-step-list>
+
+          <p-step-panels class="w-full">
+            @for (step of stepsConfig; track step.id; let i = $index) {
+            <p-step-panel [value]="i">
+              <ng-template pTemplate="content">
+                <div class="flex justify-center p-2 md:p-6">
+                  <div class="w-full">
+                    @if (!isLoading && step.formlyFields?.length) {
+                    <form
+                      [formGroup]="getStepFormGroup(step.id)"
+                      class="p-fluid"
+                    >
+                      <formly-form
+                        [form]="getStepFormGroup(step.id)"
+                        [fields]="step.formlyFields || []"
+                        [model]="mainModel[step.id]"
+                      >
+                      </formly-form>
+                    </form>
+                    } @else if (step.id === 'completion') {
+                    <div>
+                      <div class="flex justify-center gap-8 flex-wrap mb-8">
+                        <p-card
+                          header="Seleccionar Logo"
+                          styleClass="w-full max-w-md"
+                        >
+                          <p-autocomplete
+                            [(ngModel)]="selectedLogo"
+                            [suggestions]="filteredLogos"
+                            (completeMethod)="filterLogos($event)"
+                            (onSelect)="onLogoSelect($event.value)"
+                            optionLabel="nombre"
+                            [dropdown]="true"
+                            forceSelection="true"
+                            placeholder="Seleccione un logo"
+                            styleClass="w-full"
+                          >
+                          </p-autocomplete>
+                          @if (logoBase64 && !isLoadingLogos) {
+                          <div class="mt-4 text-center">
+                            <img
+                              [src]="logoBase64"
+                              alt="Vista previa del Logo"
+                              class="border rounded-md p-1 max-h-24 mx-auto"
+                            />
+                          </div>
+                          }
+                        </p-card>
+                        <div
+                          class="flex flex-col items-center justify-center w-full max-w-md"
+                        >
+                          <p-button
+                            label="Visualizar Solicitud"
+                            icon="pi pi-eye"
+                            styleClass="w-full mb-3"
+                            (onClick)="showPdfWithDynamicData()"
+                          ></p-button>
+                        </div>
+                      </div>
+
+                      <p-divider align="center" styleClass="my-8">
+                        <span class="font-bold text-lg">Gestión de Anexos</span>
+                      </p-divider>
+
+                      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        <p-card header="Anexos Subidos">
+                          <div class="flex justify-end mb-4">
+                            <p-button
+                              label="Agregar Anexo"
+                              icon="pi pi-plus"
+                              (onClick)="openAnexoModal()"
+                              styleClass="p-button-primary"
+                            ></p-button>
+                          </div>
+                          <p-table
+                            [value]="anexosSubidos"
+                            responsiveLayout="scroll"
+                            styleClass="p-datatable-sm"
+                          >
+                            <ng-template pTemplate="header">
+                              <tr>
+                                <th>Nombre del Anexo</th>
+                                <th class="w-32 text-center">Acciones</th>
+                              </tr>
+                            </ng-template>
+                            <ng-template
+                              pTemplate="body"
+                              let-anexo
+                              let-rowIndex="rowIndex"
+                            >
+                              <tr>
+                                <td>
+                                  <span class="font-medium"
+                                    >{{ anexo.nombre }}</span
+                                  >
+                                  <p class="text-sm text-gray-500">
+                                    {{ anexo.archivo.name }} ({{
+                                    (anexo.archivo.size / 1024) | number:'1.0-2'
+                                    }} KB)
+                                  </p>
+                                </td>
+                                <td class="text-center">
+                                  <p-button
+                                    icon="pi pi-trash"
+                                    styleClass="p-button-danger p-button-text"
+                                    (onClick)="eliminarAnexo(rowIndex)"
+                                    pTooltip="Eliminar anexo"
+                                    tooltipPosition="top"
+                                  ></p-button>
+                                </td>
+                              </tr>
+                            </ng-template>
+                            <ng-template pTemplate="emptymessage">
+                              <tr>
+                                <td colspan="2" class="text-center p-4">
+                                  Aún no se han subido anexos.
+                                </td>
+                              </tr>
+                            </ng-template>
+                          </p-table>
+                        </p-card>
+
+                        <p-card header="Anexos Esperados (Requeridos)">
+                          <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                            @for (anexo of anexosEsperados; track anexo.nombre)
+                            {
+                            <li>{{ anexo.nombre }}</li>
+                            }
+                          </ul>
+                        </p-card>
+                      </div>
+                    </div>
+                    }
+
+                    <div
+                      class="flex pt-6 mt-6 border-t gap-3"
+                      [ngClass]="{'justify-end': i === 0, 'justify-between': i > 0}"
+                    >
+                      @if (i > 0) {
+                      <p-button
+                        label="Anterior"
+                        icon="pi pi-arrow-left"
+                        (onClick)="prevStep()"
+                        styleClass="p-button-secondary"
+                      ></p-button>
+                      }
+
+                      <div
+                        class="flex gap-2 ml-auto"
+                        [ngClass]="{'ml-0': i === 0}"
+                      >
+                        @if (step.formlyFields?.length && step.id !==
+                        'completion') {
+                        <p-button
+                          label="Llenar con datos de ejemplo"
+                          icon="pi pi-file-edit"
+                          (onClick)="fillStepWithTestData(step.id)"
+                          styleClass="p-button-outlined p-button-help"
+                        ></p-button>
+                        } @if (i < stepsConfig.length - 1) {
+                        <p-button
+                          label="Siguiente"
+                          icon="pi pi-arrow-right"
+                          iconPos="right"
+                          (onClick)="nextStep(i)"
+                        ></p-button>
+                        } @if (i === stepsConfig.length - 1) {
+                        <p-button
+                          label="Enviar Solicitud"
+                          icon="pi pi-send"
+                          (onClick)="submitForm()"
+                          [disabled]="mainForm.invalid || topForm.invalid || isSubmitting"
+                          [loading]="isSubmitting"
+                        ></p-button>
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ng-template>
+            </p-step-panel>
+            }
+          </p-step-panels>
+        </p-stepper>
+      </div>
+      } @if (!isLoading && stepsConfig.length === 0 && !noDataMessage) {
+      <div class="text-center p-8">
+        <p class="text-gray-500">
+          Por favor, complete las selecciones superiores para cargar el
+          formulario de registro.
+        </p>
+      </div>
+      }
+    </ng-template>
+  </p-card>
+</div>
+
+<p-toast position="top-right"></p-toast>

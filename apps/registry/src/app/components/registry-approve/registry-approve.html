@@ -1,0 +1,123 @@
+<!-- Toast para notificaciones -->
+<p-toast></p-toast>
+
+<!-- Contenedor principal con Tailwind CSS -->
+<div class="bg-gray-100 p-4 md:p-8 min-h-screen">
+  <p-card class="w-full max-w-7xl shadow-lg mx-auto">
+    <!-- Título del componente -->
+    <ng-template pTemplate="title">
+      <div class="flex justify-between items-center">
+        <h1 class="text-3xl font-bold text-gray-800">
+          Revisión de Solicitud de Registro
+        </h1>
+        <div *ngIf="solicitudId" class="text-right">
+          <span class="text-sm text-gray-500">ID Solicitud:</span>
+          <span class="font-mono bg-gray-200 text-gray-700 rounded px-2 py-1 ml-1">
+            {{ solicitudId }}
+          </span>
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template pTemplate="content">
+      <!-- Estado de Carga -->
+      <div *ngIf="isLoading" class="flex flex-col items-center justify-center p-16">
+        <p-progressSpinner styleClass="w-12 h-12" strokeWidth="6"></p-progressSpinner>
+        <p class="mt-4 text-lg text-gray-600">Cargando datos de la solicitud...</p>
+      </div>
+
+      <!-- Estado de Error o Sin Datos -->
+      <div *ngIf="!isLoading && noDataMessage" class="text-center p-16">
+        <i class="pi pi-exclamation-triangle text-yellow-500 text-5xl"></i>
+        <p class="mt-4 text-xl text-gray-700">{{ noDataMessage }}</p>
+      </div>
+
+      <!-- Stepper y Formulario -->
+      <div *ngIf="!isLoading && !noDataMessage && stepsConfig.length > 0">
+        <p-stepper [(value)]="activeStepIndex" [linear]="false" class="w-full flex flex-col">
+          <!-- Lista de Pasos (Navegación) -->
+          <p-step-list class="w-full flex justify-center mb-6">
+            <!-- SOLUCIÓN: Cambiado '$index' a 'index' -->
+            <ng-container *ngFor="let step of stepsConfig; let i = index">
+              <p-step [value]="i">
+                <span class="p-stepper-title font-medium">{{ step.header }}</span>
+              </p-step>
+            </ng-container>
+          </p-step-list>
+
+          <!-- Paneles de Contenido de cada Paso -->
+          <p-step-panels class="w-full">
+            <!-- SOLUCIÓN: Cambiado '$index' a 'index' -->
+            <ng-container *ngFor="let step of stepsConfig; let i = index">
+              <p-step-panel [value]="i">
+                <ng-template pTemplate="content">
+                  <div class="flex justify-center p-2 md:p-6">
+                    <div class="w-full max-w-5xl">
+                      
+                      <!-- Renderizar Formulario Dinámico si hay campos -->
+                      <div *ngIf="step.formlyFields?.length; else noFieldsTemplate">
+                        <form [formGroup]="getStepFormGroup(step.id)" class="p-fluid">
+                          <formly-form 
+                            [form]="getStepFormGroup(step.id)" 
+                            [fields]="step.formlyFields || []"
+                            [model]="mainModel[step.id]">
+                          </formly-form>
+                        </form>
+                      </div>
+
+                      <!-- Plantilla para el último paso o pasos sin campos -->
+                      <ng-template #noFieldsTemplate>
+                        <div *ngIf="step.id === 'approval_actions'" class="text-center p-8 border-2 border-dashed rounded-lg">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-4">Confirmación Final</h3>
+                            <p class="text-gray-600 mb-6">
+                              Ha revisado todos los datos de la solicitud. Por favor, seleccione una acción a continuación.
+                            </p>
+                            <div class="flex justify-center gap-4">
+                                <p-button 
+                                  label="Rechazar Solicitud" 
+                                  icon="pi pi-times" 
+                                  styleClass="p-button-danger"
+                                  (onClick)="submitDecision('Rechazado')">
+                                </p-button>
+                                <p-button 
+                                  label="Aprobar Solicitud" 
+                                  icon="pi pi-check" 
+                                  styleClass="p-button-success"
+                                  (onClick)="submitDecision('Aprobado')">
+                                </p-button>
+                            </div>
+                        </div>
+                        <div *ngIf="step.id !== 'approval_actions'" class="text-center p-8">
+                            <p class="text-gray-500">Esta sección no contiene campos para mostrar.</p>
+                        </div>
+                      </ng-template>
+
+                      <!-- Botones de Navegación -->
+                      <div class="flex pt-6 mt-6 border-t gap-3" [ngClass]="{'justify-end': i === 0, 'justify-between': i > 0}">
+                        <p-button *ngIf="i > 0" 
+                          label="Anterior" 
+                          icon="pi pi-arrow-left" 
+                          (onClick)="prevStep()"
+                          styleClass="p-button-secondary">
+                        </p-button>
+
+                        <p-button *ngIf="i < stepsConfig.length - 1" 
+                          label="Siguiente" 
+                          icon="pi pi-arrow-right"
+                          iconPos="right" 
+                          (onClick)="nextStep()"
+                          styleClass="ml-auto">
+                        </p-button>
+                      </div>
+
+                    </div>
+                  </div>
+                </ng-template>
+              </p-step-panel>
+            </ng-container>
+          </p-step-panels>
+        </p-stepper>
+      </div>
+    </ng-template>
+  </p-card>
+</div>

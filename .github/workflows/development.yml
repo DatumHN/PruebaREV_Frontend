@@ -1,0 +1,62 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [main, development]
+  push:
+    branches: [main, development]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    env:
+      CI: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install deps
+        run: |
+          npm ci || npm install
+
+      - name: Prettier (check)
+        run: npm run format
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Type Check
+        run: npm run typecheck
+
+      - name: Security audit (high+)
+        run: npm run audit
+
+      - name: Run unit tests (solo si existen *.spec.ts)
+        run: |
+          if git ls-files '**/*.spec.ts' | grep -q '\.spec\.ts$'; then
+            echo "Spec files found. Running unit tests..."
+            npx nx test registry --ci
+          else
+            echo "No unit tests yet — skipping test step."
+          fi
+
+      - name: Publicar cobertura (si existe)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/**
+          if-no-files-found: ignore
+
+      - name: Build all apps (production)
+        run: npx nx run-many -t build --all -c production --parallel

@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["apps/**/*.ts", "libs/**/*.ts"],
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/test-setup.ts",
+    "**/jest-setup.ts",
+    "**/*.stories.ts",
+    "**/*.e2e-spec.ts",
+    "**/mocks/**",
+    "**/testing/**",
+    "tools/**",
+    "dist/**",
+    "tmp/**"
+  ]
+}

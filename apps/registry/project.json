@@ -1,0 +1,89 @@
+{
+  "name": "registry",
+  "sourceRoot": "apps/registry/src",
+  "projectType": "application",
+  "tags": ["scope:app"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:webpack-browser",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/registry",
+        "index": "apps/registry/src/index.html",
+        "main": "apps/registry/src/main.ts",
+        "polyfills": ["zone.js"],
+        "tsConfig": "apps/registry/tsconfig.app.json",
+        "assets": [
+          "apps/registry/src/favicon.ico",
+          {
+            "glob": "**/*",
+            "input": "apps/registry/src/assets",
+            "output": "assets"
+          }
+        ],
+        "styles": ["apps/registry/src/styles.scss"],
+        "scripts": []
+      },
+      "configurations": {
+        "development": {
+          "optimization": false,
+          "sourceMap": true,
+          "buildOptimizer": false
+        },
+        "production": {
+          "optimization": true,
+          "sourceMap": false,
+          "buildOptimizer": true,
+          "extractLicenses": true,
+          "namedChunks": false,
+          "vendorChunk": false,
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "2MB",
+              "maximumError": "5MB"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "200KB",
+              "maximumError": "400KB"
+            }
+          ]
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/registry/src/**/*.ts",
+          "apps/registry/src/**/*.html"
+        ]
+      }
+    },
+    "serve": {
+      "executor": "@nx/angular:dev-server",
+      "options": {
+        "buildTarget": "registry:build",
+        "port": 4204,
+        "hmr": true
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "registry:build:development"
+        },
+        "production": {
+          "buildTarget": "registry:build:production"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/registry/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}

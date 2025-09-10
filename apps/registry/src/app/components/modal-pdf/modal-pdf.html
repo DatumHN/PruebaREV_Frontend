@@ -1,0 +1,29 @@
+<div class="pdf-modal-container">
+  <!-- El botón flotante anterior ha sido eliminado de aquí. -->
+
+  <!-- Estado de Carga: Se muestra mientras se genera el PDF. -->
+  @if (isLoading) {
+  <div class="feedback-container">
+    <p-progressSpinner ariaLabel="loading"></p-progressSpinner>
+    <p class="mt-3 text-gray-600">Generando vista previa...</p>
+  </div>
+  }
+
+  <!-- Estado de Error: Se muestra si algo falla. -->
+  @if (errorMessage && !isLoading) {
+  <div class="feedback-container text-red-600">
+    <i class="pi pi-times-circle" style="font-size: 2.5rem"></i>
+    <p class="mt-3 font-semibold">{{ errorMessage }}</p>
+  </div>
+  }
+
+  <!-- Visualizador de PDF: Se muestra cuando el PDF está listo. -->
+  @if (pdfUrl && !isLoading) {
+  <iframe [src]="pdfUrl" frameborder="0" class="pdf-iframe"></iframe>
+  }
+
+  <!-- SOLUCIÓN: Contenedor para el nuevo botón de cierre -->
+  <div class="modal-footer">
+    <p-button label="Cerrar" icon="pi pi-times" (onClick)="closeModal()"> </p-button>
+  </div>
+</div>

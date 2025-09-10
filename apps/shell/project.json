@@ -1,0 +1,110 @@
+{
+  "name": "shell",
+  "sourceRoot": "apps/shell/src",
+  "projectType": "application",
+  "tags": ["scope:app"],
+  "targets": {
+    "build": {
+      "executor": "@nx/angular:webpack-browser",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/shell",
+        "index": "apps/shell/src/index.html",
+        "main": "apps/shell/src/main.ts",
+        "polyfills": ["zone.js"],
+        "tsConfig": "apps/shell/tsconfig.app.json",
+        "assets": [
+          "apps/shell/src/favicon.ico",
+          {
+            "glob": "**/*",
+            "input": "apps/shell/src/assets",
+            "output": "assets"
+          },
+          {
+            "glob": "**/*",
+            "input": "apps/landing/src/assets",
+            "output": "assets"
+          },
+          {
+            "glob": "**/*",
+            "input": "apps/registry/src/assets",
+            "output": "assets"
+          },
+          {
+            "glob": "**/*",
+            "input": "apps/auth/src/assets",
+            "output": "assets"
+          },
+          {
+            "glob": "**/*",
+            "input": "apps/admin/src/assets",
+            "output": "assets"
+          }
+        ],
+        "styles": ["apps/shell/src/styles.scss"],
+        "scripts": []
+      },
+      "configurations": {
+        "development": {
+          "optimization": false,
+          "sourceMap": true,
+          "buildOptimizer": false
+        },
+        "production": {
+          "optimization": true,
+          "sourceMap": false,
+          "buildOptimizer": true,
+          "extractLicenses": true,
+          "namedChunks": false,
+          "vendorChunk": false,
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "2MB",
+              "maximumError": "5MB"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "200KB",
+              "maximumError": "400KB"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/angular:module-federation-dev-server",
+      "options": {
+        "buildTarget": "shell:build",
+        "port": 4200,
+        "hmr": true,
+        "devRemotes": ["registry", "admin", "auth", "landing"]
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "shell:build:development"
+        },
+        "production": {
+          "buildTarget": "shell:build:production"
+        }
+      },
+      "defaultConfiguration": "development"
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "apps/admin/src/**/*.ts",
+          "apps/admin/src/**/*.html"
+        ]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/shell/jest.config.ts",
+        "passWithNoTests": true
+      }
+    }
+  }
+}
